@@ -1,0 +1,81 @@
+Görev: Mevcut "DermaScan" web uygulamasını, "MediAnalytica" adında çok kategorili yeni bir platform olarak yeniden tasarlayın.
+
+En Kritik Kural: YENİDEN TASARIM SIRASINDA HİÇBİR MEVCUT FONKSİYON (JavaScript ile çalışan görsel yükleme, predict fonksiyonuna veri gönderme, sonuç alma vb.) BOZULMAMALIDIR.
+
+Ana hedef, "DermaScan"in tekil, pembe/kırmızı temasını, 7 farklı medikal analiz kategorisinin sunulduğu modern, temiz ve profesyonel (mavi/beyaz/yeşil) bir arayüze dönüştürmektir.
+
+Uygulanacak Yapısal Değişiklikler (Yeni Akış):
+
+Mevcut HTML yapısını iki ana "görünüme" (view) ayırın:
+
+View 1: Kategori Seçim Ekranı (Ana Sayfa)
+
+Bu, kullanıcı siteye girdiğinde göreceği varsayılan ekran olmalıdır.
+
+Ekranın en üstünde net bir başlık olmalı: "MediAnalytica: Akıllı Analiz Platformu"
+
+Altında bir yönlendirme metni olmalı: "Hangi alanda analiz yapmak istiyorsunuz? Lütfen bir kategori seçin:"
+
+Bu başlığın altında, 7 kategoriyi temsil eden tıklanabilir kartlardan oluşan bir grid (ızgara) yapı (örn: 3'lü veya 4'lü sıralar) oluşturun.
+
+View 2: Analiz Ekranı (Yükleyici)
+
+Bu, orijinal pre2.png'deki görsel yükleme ve sonuç gösterme alanını içeren "kart"tır.
+
+Bu ekran varsayılan olarak gizli (display: none;) olmalıdır.
+
+JavaScript Akışı (Yeni):
+
+Kullanıcı, "View 1" (Ana Sayfa) üzerindeki 7 karttan birine (örn: "Akciğer") tıkladığında, JavaScript:
+
+View 1'i gizlemeli (display: none;).
+
+View 2'yi (Analiz Ekranı) göstermeli (display: block;).
+
+View 2'nin başlığını, seçilen kategoriye göre (örn: "Akciğer Analizi") dinamik olarak değiştirmelidir.
+
+Kullanıcının hangi kategoriyi seçtiğini (örn: data-category="lung") bir değişkende tutmalı ki, "Analiz Et" butonuna basıldığında bu bilgi görselle birlikte backend'e gönderilebilsin. (Bu, backend'deki if-elif bloğunun çalışması için gereklidir).
+
+View 2'de bir "Geri Dön" veya "Ana Sayfa" butonu olmalıdır ki, kullanıcı kategori seçim ekranına (View 1) dönebilsin.
+
+Global Tasarım Kuralları (Tüm Görünümler İçin):
+
+Marka ve Temizlik (De-branding):
+
+Tüm "DermaScan", "Derma", "Dermer" isimlerini "MediAnalytica" olarak değiştirin.
+
+Tüm pre.png, pre4.png'deki çizgi film illüstrasyonları, Hackathon/G20 logoları, "Download APK" butonu gibi alakasız elementleri HTML/CSS'den tamamen kaldırın.
+
+Yeni Renk Paleti:
+
+Tüm kırmızı, pembe ve koyu temalı renkleri kaldırın.
+
+Ana Arka Plan: Temiz bir Beyaz (#FFFFFF) veya çok açık Mavi (#F0F7FF).
+
+Vurgu Renkleri: Profesyonel bir Deniz Mavisi (#007BFF) veya Turkuaz/Yeşil (#00A79D). Bu renkler butonlarda, linklerde ve kartların hover efektlerinde kullanılmalıdır.
+
+Tipografi (Font):
+
+Tüm metinler için Google Fonts'tan 'Inter' fontunu yüklüyor ve global olarak (body) tanımlayın.
+
+Başlık hiyerarşisini (H1, H2, H3) netleştirin.
+
+Kart Tasarımları (View 1 - Kategori Kartları):
+
+7 adet kart (Deri, Akciğer, Göz, Beyin, Kan, Kemik/Kırık, Diş) aynı stilde olmalıdır.
+
+Stil: Beyaz arka plan, box-shadow (hafif gölge), border-radius (yumuşak köşeler), padding.
+
+İçerik: Her kartın içinde kategoriye uygun basit bir inline SVG ikon (örn: Beyin için bir beyin ikonu, Göz için bir göz ikonu) ve kategori adı (örn: "Beyin") bulunmalıdır.
+
+Etkileşim: Kullanıcı bir kartın üzerine geldiğinde (hover), kartın gölgesi artmalı veya kenarlığı vurgu rengiyle (mavi/yeşil) belirginleşmelidir.
+
+Analiz Kartı Tasarımı (View 2):
+
+Bu kart (pre2.png'deki ana kart) da "View 1"deki kartlarla aynı tasarım diline (beyaz arka plan, gölge, yumuşak köşeler) sahip olmalıdır.
+
+Buton Stilleri:
+
+"Upload Image" ve "Predicted Disease" (veya "Analiz Et" / "Sonuçlar") gibi tüm butonlar, yeni Vurgu Rengi (mavi veya yeşil) ile yeniden tasarlanmalı ve yumuşak köşelere (border-radius) sahip olmalıdır.
+
+Bu prompt, AI'a hem estetik (renkler, fontlar) hem de yapısal (2 adımlı yeni sayfa akışı) olarak ne yapması gerektiğini net bir şekilde anlatır.

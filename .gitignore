@@ -1,0 +1,85 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+*.log.*
+training_logs/
+eval_bone_load.log
+training_*.log
+
+# Model files (büyük dosyalar - isteğe bağlı olarak commit edilebilir)
+# *.keras
+# *.h5
+# *.pb
+# *.pkl
+
+# Dataset files (genellikle çok büyük)
+datasets/
+data/
+*.csv
+*.xlsx
+*.xls
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Training outputs
+training_history.csv
+checkpoints/
+logs/
+
+# Large model directories
+final_model_kaggle_version1/
+
+# APK files (büyük dosyalar)
+*.apk
+

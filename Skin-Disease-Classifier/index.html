@@ -1,0 +1,562 @@
+<!DOCTYPE html><html lang="zxx"><head>
+    <meta charset="utf-8">
+    <title>DermaScan</title>
+
+    <!-- mobile responsive meta -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+    <!-- ** Plugins Needed for the Project ** -->    
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/themify-icons.css">
+    <link rel="stylesheet" href="css/slick.css">
+    <link rel="stylesheet" href="css/slick-theme.css">
+    <link rel="stylesheet" href="css/aos.css">
+    <link rel="stylesheet" href="css/w3.css">
+    <link rel="stylesheet" href="css/skin.css">
+    <!-- Main Stylesheet -->
+    <link href="css/style.css" rel="stylesheet">
+
+    <!--Favicon-->
+    <link rel="shortcut icon" href="images/favicon.png" type="image/x-icon">
+    <link rel="icon" href="images/favicon.png" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel='stylesheet' href='https://use.fontawesome.com/releases/v5.4.2/css/all.css' integrity='sha384-/rXc/GQVaYpyDdyxK+ecHPVYJSN9bmVFBvjA/9eOB+pb3F2w2N6fc5qB9Ew5yIns' crossorigin='anonymous'>
+
+</head>
+<body id="top" data-spy="scroll" data-target="#navbar-spy" class="position-relative">
+    <script>
+        // Function to toggle between light and dark modes
+        function toggleDarkMode() {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (prefersDark) {
+                document.body.setAttribute('light-mode', 'dark');
+            } else {
+                document.body.removeAttribute('light-mode');
+            }
+        }
+
+        // Initial theme detection and toggling
+        toggleDarkMode();
+
+        // Listen for changes in system theme preference
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            toggleDarkMode();
+        });
+    </script>
+    <!-- start of preloader -->
+    <div class="preloader position-fixed d-flex align-items-center justify-content-center">
+        <div class="block">
+            <div class="loader-image mb-20">
+                <img src="images/preloader.png">
+            </div>
+            <div class="loader-text text-uppercase">
+                <span class="mb-1">Welcome to</span>
+                <span>DermaScan</span>
+            </div>
+        </div>
+    </div>    
+    <!-- end of preloader -->
+<!-- start of header -->
+<header class="header-nav position-relative bg-light-gray">
+    <div class="container">
+        <nav class="navbar navbar-expand-xl navbar-light px-0">
+            <a class="navbar-brand p-0" href="index.html"><img class="img-fluid" src="images/logo.png" alt="logo" height="90" width="250"></a>
+            <a class="navbar-brand p-0" href="index.html"><img class="img-fluid" src="images/sih23.png" alt="logo" height="140" width="350" style="margin-left: 20px;"></a>
+
+            <!-- logo -->
+
+            <button class="navbar-toggler bg-white p-0" type="button" data-toggle="collapse" data-target="#navlinks" aria-controls="navlinks" aria-expanded="false" aria-label="Toggle navigation" style="border-radius: 12px; width: 40px; height: 40px;">
+                <svg class="nav-toggle-icon" viewBox="0 0 100 100" width="40" onclick="this.classList.toggle('active')">
+                    <path class="line top" d="m 70,33 h -40 c 0,0 -8.5,-0.149796 -8.5,8.5 0,8.649796 8.5,8.5 8.5,8.5 h 20 v -20"></path>
+                    <path class="line middle" d="m 70,50 h -40"></path>
+                    <path class="line bottom" d="m 30,67 h 40 c 0,0 8.5,0.149796 8.5,-8.5 0,-8.649796 -8.5,-8.5 -8.5,-8.5 h -20 v 20"></path>
+                </svg>
+            </button>
+                        
+            <!-- mobile-nav control button -->
+            
+            <div class="collapse navbar-collapse" id="navlinks">
+                <ul class="navbar-nav mx-auto">
+                    <li class="nav-item active">
+                        <a class="nav-link" href="index.html">Home</a>
+                    </li>
+                    <!-- <li class="nav-item dropdown @@pricing">
+                        <a class="nav-link dropdown-toggle d-flex justify-content-between align-items-center" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span class="mr-1">Team Members</span>
+                            <svg width="9" height="6" viewBox="0 0 9 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 1.06L7.94 0L4.5 3.44L1.06 0L0 1.06L4.5 5.56L9 1.06Z" fill="currentColor"></path></svg>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item @@pricingOne" href="https://adityaver.netlify.app/">Aditya Verma</a></li>
+                            <li><a class="dropdown-item @@pricingTwo" href="#">Sahil Adhikari</a></li>
+                        </ul>
+                    </li> -->
+                </ul>
+                <div class="navbar-button">
+                    <button class="btn-sm light-mode-button" aria-label="Toggle Light Mode" onclick="toggle_light_mode()">
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <a class="btn btn-sm btn-outline-primary" href="./apk/DermaScan.apk"><b>Download APK</b> <i class='fa fa-download' style="margin-left: 7px;"></i></a>
+                </div>                
+            </div>
+            <!-- nav links -->
+        </nav>
+    </div>
+</header>
+<!-- end of header -->
+<!-- start of banner -->
+<section class="banner bg-cover-bottom has-shapes bg-light-gray has-bg-brash bg-brash-bottom" style="background-image: url(images/banner.svg)" data-aos="fade-in" data-aos-delay="150">
+    <div class="container h-100">
+        <div class="d-block d-lg-flex no-gutters align-items-center h-100">
+            <div class="col-12 col-xl-8 col-lg-8 order-lg-1">
+                <div class="banner-image has-video-popup has-shapes mb-4 mb-md-5 mb-lg-0">
+                    <a href="https://github.com/ADITYAVOFFICIAL/Skin-Disease-Classifier" target="_blank">
+                        <button type="button" class="video-play-btn">
+                            <svg width="1.8em" height="1.8em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                <image xlink:href="https://cdn-icons-png.flaticon.com/512/25/25231.png" width="16" height="16" />
+                            </svg>
+                        </button>
+                    </a> 
+                    <img class="img-fluid" src="images/banner-shot.png" alt="">
+
+                    <div class="shape-lg bg-tertiary rounded-circle"></div>
+                    <div class="shape-md bg-primary rounded-circle"></div>
+                    <div class="shape-sm bg-secondary rounded-circle"></div>
+                </div>
+            </div>
+            <div class="col-xl-5 col-lg-6 order-lg-0">
+                <h2 class="h1 mb-20">Welcome to <strong>DermaScan</strong></h2>
+                <p>An all-in-one solution for skin disease identification, boasting exceptional accuracy, responsive performance, and a sleek, user-friendly modern UI.</p>
+                
+                <p class="content has-underdot-link text-black-700 mt-15">Works Perfectly on
+                    <a href="#!">Mac</a>,
+                    <a href="#!">Windows</a>,
+                    <a href="#!">iOS</a>, &amp;
+                    <a href="#!">Android</a>.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="shape-1 shape-sm bg-secondary rounded-circle"></div>
+    <div class="shape-3 shape-sm-2 bg-primary rounded-circle"></div>
+    <div class="shape-4 shape-sm-2 bg-primary rounded-circle"></div>
+    <div class="shape-5 shape-xs bg-secondary rounded-circle"></div>
+    <div class="shape-6 shape-xs bg-tertiary rounded-circle"></div>
+    <div class="shape-7 shape-xs-2 bg-tertiary rounded-circle"></div>
+    <div class="shape-8 shape-xs-2 bg-primary rounded-circle"></div>
+</section>
+<!-- end of banner -->
+
+<!-- start of growth-rate -->
+<section class="section-padding pb-50">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6 col-md-9 mx-auto text-center mb-40">
+                <h2 class="section-title">Skin Disease <strong>Classifier</strong></h2>
+            </div>
+            <div class="col-xl-10 w3-content">
+                    <div class="w3-center w3-padding-bottom">
+                        <img id="selected-image" class="adjust-image" src="./images/nope.png" alt="Image for analysis" style="border-radius: 17px; max-width: 65%;">
+                    </div>                
+                    <div id="btnn" class="w3-center" style="padding-top: 10px;">
+                        <input type="file" name="image" id="image" accept=".jpg, .png" style="display: none;">
+                        <button class="btn btn-primary has-icon" onclick="setTimeout(simulateClick.bind(null, 'image-selector'), 200)" style="margin-bottom: 12px;">
+                            <i class='fas fa-camera w3-padding-right' style='font-size:15px'></i>
+                            <b>Upload Skin Image</b>
+                            <span class="icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.5522 6.66669L20.5522 14.6667C21.0329 15.1473 21.0699 15.9036 20.6632 16.4267L20.5522 16.5523L12.5522 24.5523L10.6666 22.6667L17.7228 15.6095L10.6666 8.55231L12.5522 6.66669Z" fill="currentColor"></path></svg></span>
+                        </button>
+                        <p>Please wait for <b>5 seconds</b> before uploading image</p>
+                        <p class="w3-text-teal"><b>Accepted image format ↪ jpeg or png</b></p>
+                        <p>Results are <b>not</b> a substitute for professional medical advice.</p>
+                    </div>
+                    <div class="w3-center add-margin side-margin text-color space-letters dont-break-out" style="border-radius: 12px; background: #cecece; margin-bottom: 1px; border: 2px solid #ff3157;">
+                        <h5 style="margin-bottom: 2px;"><span class="fa fa-angle-double-down" style="padding-right: 5px;padding-top: 10px;"></span><b style="color: #ff3157;">Predicted Skin Disease</b><span class="fa fa-angle-double-down" style="padding-left: 5px;"></span></h5>
+                        <ol class='w3-left-align text-color' id='prediction-list' style="font-weight: bold;"></ol>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+<!-- end of growth-rate -->
+<section class="section-padding tools-use-section has-shapes bg-light-gray has-bg-brash bg-brash-y"
+         style="background-image: url(images/section-top.svg), url(images/section-bottom.svg);">
+    <div class="container">
+        <div class="row align-items-center justify-content-center">
+            <div class="col-lg-6 col-md-9 mx-auto text-center mb-40">
+                <h2 class="section-title">SIH 2023 <strong>PPT</strong></h2>
+            </div>
+            <div class="col-lg-10">
+                <div id="imageSlider" class="carousel slide" data-ride="carousel" data-interval="20000">
+                    <ol class="carousel-indicators">
+                        <li data-target="#imageSlider" data-slide-to="0" class="active"></li>
+                        <li data-target="#imageSlider" data-slide-to="1"></li>
+                        <li data-target="#imageSlider" data-slide-to="2"></li>
+                        <li data-target="#imageSlider" data-slide-to="3"></li>
+                        <!-- Add more li elements for additional slides -->
+                    </ol>
+                    <div class="carousel-inner text-center img-fluid shadow" style="border-radius: 15px;"> <!-- Added text-center for center alignment -->
+                        <div class="carousel-item active">
+                            <img src="./images/slide1.png" alt="Image 1" style="max-width: 100%; max-height: 100vh;">
+                        </div>                        
+                        <div class="carousel-item">
+                            <img src="./images/slide2.png" alt="Image 1" style="max-width: 100%; max-height: 100vh;">
+                        </div>
+                        <div class="carousel-item">
+                            <img src="./images/slide3.png" alt="Image 1" style="max-width: 100%; max-height: 100vh;">
+                        </div>
+                        <div class="carousel-item">
+                            <img src="./images/slide4.png" alt="Image 1" style="max-width: 100%; max-height: 100vh;">
+                        </div>
+                        <!-- Add more div elements for additional slides -->
+                    </div>
+                    <!-- Changed the arrow colors to black -->
+                    <a class="carousel-control-prev" href="#imageSlider" role="button" data-slide="prev">
+                        <i class="fa fa-angle-double-left" style="font-size: 40px;"></i>
+                        <span class="sr-only">Previous</span>
+                    </a>
+                    <a class="carousel-control-next" href="#imageSlider" role="button" data-slide="next">
+                        <i class="fa fa-angle-double-right" style="font-size: 40px;"></i>
+                        <span class="sr-only">Next</span>
+                    </a>                                      
+                </div>                
+            </div>
+        </div>
+    </div>
+
+    <div class="shape-1 shape-xs bg-secondary rounded-circle"></div>
+    <div class="shape-2 shape-sm bg-primary rounded-circle d-none d-md-block"></div>
+    <div class="shape-3 shape-xs-2 bg-primary rounded-circle"></div>
+    <div class="shape-4 shape-xs bg-tertiary rounded-circle"></div>
+    <div class="shape-5 shape-xs bg-tertiary rounded-circle"></div>
+    <div class="shape-6 shape-md bg-secondary rounded-circle d-none d-md-block"></div>
+</section>
+<!-- start of how-it-works tab -->
+<section class="section-padding how-it-works-tab pt-0 overflow-hidden">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6 col-md-9 text-center mb-40 mt-50">
+                <h2 class="section-title">How <strong>it Works</strong></h2>
+            </div>
+            <div class="col-lg-11">
+                <ul class="nav nav-pills justify-content-center mb-20" id="pills-tab" role="tablist">
+                    <li class="nav-item mb-20" role="presentation">
+                        <a class="nav-link active" id="pill-management-tab" data-toggle="pill" href="#management-tab" role="tab" aria-controls="management-tab" aria-selected="true">
+                            <i class="circle-shape"></i>1. Image Upload
+                        </a>
+                    </li>
+                    <li class="nav-item mb-20" role="presentation">
+                        <a class="nav-link" id="pill-chat-tab" data-toggle="pill" href="#chat-tab" role="tab" aria-controls="chat-tab" aria-selected="false">
+                            <i class="circle-shape"></i>2. Image is processed
+                        </a>
+                    </li>
+                    <li class="nav-item mb-20" role="presentation">
+                        <a class="nav-link" id="pill-analytics-tab" data-toggle="pill" href="#analytics-tab" role="tab" aria-controls="analytics-tab" aria-selected="false">
+                            <i class="circle-shape"></i>3. Classification
+                        </a>
+                    </li>
+                    <li class="nav-item mb-20" role="presentation">
+                        <a class="nav-link" id="pill-collaboration-tab" data-toggle="pill" href="#collaboration-tab" role="tab" aria-controls="collaboration-tab" aria-selected="false">
+                            <i class="circle-shape"></i>4. Results Displayed
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="pills-tabContent" data-aos="fade-in">
+                    <div class="tab-pane fade show active" id="management-tab" role="tabpanel" aria-labelledby="pill-management-tab">
+                        <div class="row align-items-center">
+                            <div class="col-lg-8 anim-to-top">
+                                <img class="img-fluid rounded-lg shadow" src="images/work1.png" alt="">
+                            </div>
+                            <div class="col-lg-4 mt-4 mt-lg-0 anim-to-bottom">
+                                <h2 class="section-title">Image <strong>Input</strong></h2>
+                                <p class="mb-30">A high-resolution image capturing the entirety of the affected skin region is uploaded and then transmitted to the backend for further processing.</p>
+                                <a href="#" class="btn btn-primary has-icon">View More
+                                    <span class="icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.5522 6.66669L20.5522 14.6667C21.0329 15.1473 21.0699 15.9036 20.6632 16.4267L20.5522 16.5523L12.5522 24.5523L10.6666 22.6667L17.7228 15.6095L10.6666 8.55231L12.5522 6.66669Z" fill="currentColor"></path></svg></span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="chat-tab" role="tabpanel" aria-labelledby="pill-chat-tab">
+                        <div class="row align-items-center">
+                            <div class="col-lg-8 anim-to-top">
+                                <img class="img-fluid rounded-lg shadow" src="images/work2.png" alt="">
+                            </div>
+                            <div class="col-lg-4 mt-4 mt-lg-0 anim-to-bottom">
+                                <h2 class="section-title">Image <strong>Processing</strong></h2>
+                                <p class="mb-30">The image is subsequently processed to ensure compatibility with the MobileNet V2 model.</p>
+                                <a href="#" class="btn btn-primary has-icon">View More
+                                    <span class="icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.5522 6.66669L20.5522 14.6667C21.0329 15.1473 21.0699 15.9036 20.6632 16.4267L20.5522 16.5523L12.5522 24.5523L10.6666 22.6667L17.7228 15.6095L10.6666 8.55231L12.5522 6.66669Z" fill="currentColor"></path></svg></span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="analytics-tab" role="tabpanel" aria-labelledby="pill-analytics-tab">
+                        <div class="row align-items-center">
+                            <div class="col-lg-8 anim-to-top">
+                                <img class="img-fluid rounded-lg shadow" src="images/work3.png" alt="">
+                            </div>
+                            <div class="col-lg-4 mt-4 mt-lg-0 anim-to-bottom">
+                                <h2 class="section-title">Image <strong>Classification</strong></h2>
+                                <p class="mb-30">Then the image is fed into the model, which then predicts top three most likely skin conditions from a list that includes actinic keratosis (AK), basal cell carcinoma (BCC), benign keratosis (BK), dermatofibroma (DF), melanocytic nevi (NV), melanoma (MEL), and vascular skin lesions (VASC).</p>
+                                <a href="#" class="btn btn-primary has-icon">View More
+                                    <span class="icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.5522 6.66669L20.5522 14.6667C21.0329 15.1473 21.0699 15.9036 20.6632 16.4267L20.5522 16.5523L12.5522 24.5523L10.6666 22.6667L17.7228 15.6095L10.6666 8.55231L12.5522 6.66669Z" fill="currentColor"></path></svg></span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="collaboration-tab" role="tabpanel" aria-labelledby="pill-collaboration-tab">
+                        <div class="row align-items-center">
+                            <div class="col-lg-8 anim-to-top">
+                                <img class="img-fluid rounded-lg shadow" src="images/work4.png" alt="">
+                            </div>
+                            <div class="col-lg-4 mt-4 mt-lg-0 anim-to-bottom">
+                                <h2 class="section-title">Results <strong>Display</strong></h2>
+                                <p class="mb-30">After the MobileNet V2 model generates predictions, they are transmitted from the backend and presented to the end user on the frontend.</p>
+                                <a href="#" class="btn btn-primary has-icon">View More
+                                    <span class="icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.5522 6.66669L20.5522 14.6667C21.0329 15.1473 21.0699 15.9036 20.6632 16.4267L20.5522 16.5523L12.5522 24.5523L10.6666 22.6667L17.7228 15.6095L10.6666 8.55231L12.5522 6.66669Z" fill="currentColor"></path></svg></span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<!-- end of how-it-works tab -->
+
+<!-- start of tools-use -->
+<section class="section-padding tools-use-section has-shapes bg-light-gray has-bg-brash bg-brash-y" style="background-image: url(images/section-top.svg), url(images/section-bottom.svg);">
+    <div class="container">
+        <div class="row align-items-center justify-content-center">
+            <div class="col-lg-4 mt-4 mt-lg-0">
+                <h2 class="section-title">Technologies <strong>Used</strong></h2>
+                <p>This project leverages Python, Keras, TensorFlow, scikit-learn, HTML5, CSS, JS, and Bootstrap, hosted on GitHub, to create a dynamic and interactive website.</p>
+            </div>
+            <div class="col-lg-6">
+                <ul class="inCircle-tools d-block d-sm-flex align-items-center justify-content-center" id="inCircle-element">
+                    <li class="has-centered lg d-inline-flex align-items-center justify-content-center bg-white shadow rounded-circle">
+                        <img src="images/01.png" alt="">
+                    </li>
+                    <li class="md d-inline-flex align-items-center justify-content-center bg-white shadow rounded-circle">
+                        <img src="images/02.png" alt="">
+                    </li>
+                    <li class="xs d-inline-flex align-items-center justify-content-center bg-white shadow rounded-circle">
+                        <img src="images/03.png" alt="">
+                    </li>
+                    <li class="md d-inline-flex align-items-center justify-content-center bg-white shadow rounded-circle">
+                        <img src="images/04.png" alt="">
+                    </li>
+                    <li class="sm d-inline-flex align-items-center justify-content-center bg-white shadow rounded-circle">
+                        <img src="images/05.png" alt="">
+                    </li>
+                    <li class="md d-inline-flex align-items-center justify-content-center bg-white shadow rounded-circle">
+                        <img src="images/06.png" alt="">
+                    </li>
+                    <li class="md d-inline-flex align-items-center justify-content-center bg-white shadow rounded-circle">
+                        <img src="images/07.png" alt="">
+                    </li>
+                    <li class="xs d-inline-flex align-items-center justify-content-center bg-white shadow rounded-circle">
+                        <img src="images/08.png" alt="">
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="shape-1 shape-xs bg-secondary rounded-circle"></div>
+    <div class="shape-2 shape-sm bg-primary rounded-circle d-none d-md-block"></div>
+    <div class="shape-3 shape-xs-2 bg-primary rounded-circle"></div>
+    <div class="shape-4 shape-xs bg-tertiary rounded-circle"></div>
+    <div class="shape-5 shape-xs bg-tertiary rounded-circle"></div>
+    <div class="shape-6 shape-md bg-secondary rounded-circle d-none d-md-block"></div>
+</section>
+<!-- end of tools-use -->
+<!-- start of contact-section -->
+<section class="section-padding contact-section has-shapes" data-aos="fade-in" data-aos-delay="150">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6 col-md-9 text-center mb-40">
+                <h2 class="section-title">Contact <strong>Us</strong></h2>
+                <p>Fill the below form if you wish to contact us.</p>
+            </div>
+        </div>
+        <div class="row justify-content-center">
+            <div class="col-xl-6 col-lg-7">
+                <form method="POST" class="needs-validation rounded shadow p-30" action="https://formspree.io/f/mwkdqzgr" novalidate>
+                    <input type="hidden" name="additional-data" value="Website ▶ DermaScan">
+                    <div class="form-group mb-30">
+                        <label class="text-black-200 h5 font-weight-600 mb-2" for="fname">Your Name</label>
+                        <input class="form-control shadow-none" type="text" placeholder="Type your name here ..." id="fname" name="name" required style="border-radius: 15px;">
+                        <p class="font-weight-bold invalid-feedback">Your name is required!</p>
+                    </div>
+                    <div class="form-group mb-30">
+                        <label class="text-black-200 h5 font-weight-600 mb-2" for="email">Working Mail</label>
+                        <input class="form-control shadow-none" type="email" placeholder="Type your email here ..." id="email" name="email" required pattern="^\S+@\S+\.\S+$" style="border-radius: 15px;">
+                        <p class="font-weight-bold invalid-feedback">Please enter a valid email address.</p>
+                    </div>                    
+                    <div class="form-group mb-30">
+                        <label class="text-black-200 h5 font-weight-600 mb-2" for="company-website">Occupation</label>
+                        <select class="form-control shadow-none" name="Occupation" style="border-radius: 15px;">
+                            <option value="">Select your occupation</option>
+                            <option value="Student">Student</option>
+                            <option value="Professor">Professor</option>
+                            <option value="Teacher">Teacher</option>
+                            <option value="Pvt. Job">Pvt. Job</option>
+                            <option value="Govt. Job">Govt. Job</option>
+                            <option value="Freelancer">Freelancer</option>
+                            <option value="Unemployed">Unemployed</option>
+                            <option value="Other">Other</option>
+                            <!-- Add more options as needed -->
+                        </select>
+                        <p class="font-weight-bold valid-feedback">OK! You can skip this field.</p>
+                        <p class="font-weight-bold invalid-feedback">Please select your company website.</p>
+                    </div>
+                    <div class="form-group mb-30">
+                        <label class="text-black-200 h5 font-weight-600 mb-2" for="subject">Subject</label>
+                        <input class="form-control shadow-none" type="text" placeholder="Type your subject here ..." id="subject" name="subject" required style="border-radius: 15px;">
+                        <p class="font-weight-bold invalid-feedback">Your subject is required!</p>
+                    </div>                    
+                    <div class="form-group mb-30">
+                        <label class="text-black-200 h5 font-weight-600 mb-2" for="message">Anything else?</label>
+                        <textarea class="form-control shadow-none" name="comment" rows="5" id="message" required style="border-radius: 15px;"></textarea>
+                        <p class="font-weight-bold invalid-feedback">Tell us something!</p>
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit" style="border-radius: 15px;"><b>Submit Now</b></button>
+                </form>                
+            </div>
+            <div class="col-xl-4 col-lg-5 mt-5 mt-lg-0">
+                <div class="shadow p-30 mb-30" style="border-radius: 15px;">
+                    <h3 class="font-weight-600">
+                        <i class="ti-location-pin text-primary mr-2"></i>
+                        Our Address
+                    </h3>
+
+                    <ul class="list-unstyled check-list-primary mt-30">
+                        <li class="mb-20">
+                            <span><svg width="16" height="11" viewBox="0 0 18 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 6.125L6.91892 11L16 2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                            CSE w/s Big Data Analytics
+                        </li>
+                        <li>
+                            <span><svg width="16" height="11" viewBox="0 0 18 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 6.125L6.91892 11L16 2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                            SRM INSTITUTE OF SCIENCE AND TECHNOLOGY, KATTANKULATHUR
+                        </li>
+                    </ul>
+                </div>
+                <div class="shadow p-30" style="border-radius: 15px;">
+                    <h3 class="font-weight-600">
+                        <i class="ti-info-alt text-primary mr-2"></i>
+                        With DermaScan
+                    </h3>
+
+                    <ul class="list-unstyled check-list-primary mt-30">
+                        <li class="mb-20">
+                            <span><svg width="16" height="11" viewBox="0 0 18 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 6.125L6.91892 11L16 2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                            Predict skin condition
+                        </li>
+                        <li class="mb-20">
+                            <span><svg width="16" height="11" viewBox="0 0 18 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 6.125L6.91892 11L16 2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                            Talk to dermatological assistant
+                        </li>
+                        <li class="mb-20">
+                            <span><svg width="16" height="11" viewBox="0 0 18 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 6.125L6.91892 11L16 2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                            Find nearest dermatologist
+                        </li>
+                        <li>
+                            <span><svg width="16" height="11" viewBox="0 0 18 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 6.125L6.91892 11L16 2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                            Relevant medical articles
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="shape-1 shape-sm bg-secondary rounded-circle"></div>
+    <div class="shape-2 shape-sm-2 bg-primary rounded-circle"></div>
+    <div class="shape-3 shape-sm bg-secondary rounded-circle"></div>
+    <div class="shape-4 shape-sm-2 bg-tertiary rounded-circle"></div>
+</section>
+<!-- end of contact-section -->
+
+<!-- start footer -->
+<footer class="bg-light-gray has-shapes has-bg-brash bg-brash-top " style="background-image: url(images/footer.svg)">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-7 col-md-12">
+                <div class="text-center pb-60">
+                    <h2 class="section-title">Visit our <strong>GitHub Repository</strong></h2>
+                    <a href="contact.html" class="btn btn-primary has-icon">Github Repository
+                        <span class="icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.5522 6.66669L20.5522 14.6667C21.0329 15.1473 21.0699 15.9036 20.6632 16.4267L20.5522 16.5523L12.5522 24.5523L10.6666 22.6667L17.7228 15.6095L10.6666 8.55231L12.5522 6.66669Z" fill="currentColor"></path></svg></span>
+                    </a>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="border-bottom"></div>
+            </div>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <div class="block border-top text-center content" style="font-weight: bold;">
+                        Copyright © 2023 Designed &amp; Developed by <a href="#">ADITYA VERMA</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="shape-1 shape-xs bg-primary rounded-circle"></div>
+    <div class="shape-2 shape-sm-2 bg-tertiary rounded-circle"></div>
+    <div class="shape-3 shape-sm bg-secondary rounded-circle"></div>
+    <div class="shape-4 shape-xs-2 bg-tertiary rounded-circle"></div>
+    <div class="shape-5 shape-sm-2 bg-secondary rounded-circle"></div>
+    <div class="shape-6 shape-sm-2 bg-primary rounded-circle"></div>
+</footer>
+<!-- end footer -->
+
+<!-- start of videoModal -->
+<div class="modal fade rounded" id="videoModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-body p-0 bg-transparent">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+                <div class="embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="" id="showVideo" allowscriptaccess="always" allow="autoplay"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- end of videoModal -->
+
+<!-- strat scroll to top -->
+<a href="#top" class="btn btn-primary scroll-to-top-btn smooth-scroll position-fixed" style="border-radius: 10px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="45" height="45"><path id="Layer" fill="currentColor" d="M7.2 19.2L15.2 11.2C15.68 10.71 16.43 10.68 16.96 11.08L17.08 11.2L25.08 19.2L23.2 21.08L16.14 14.02L9.08 21.08L7.2 19.2Z"></path></svg></a>
+<!-- end scroll to top -->
+<div class="hide">
+    <button id='predict-button'>Predict</button>
+</div>
+<div class="hide">
+    <input id="image-selector" type="file" multiple>
+</div>
+<!-- Plugins Needed for the Project -->
+<script src="./js/jquery.min.js"></script>
+<script src="./js/bootstrap.min.js"></script>
+<script src="./js/slick.min.js"></script>
+<script src="./js/shuffle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@0.13.3/dist/tf.min.js"></script>
+<script src="./js/aos.js"></script>
+<script src="./jscript/target_classes.js"></script>
+<script src="./jscript/app_startup_code.js"></script>
+<script src="./jscript/app_batch_prediction_code.js"></script>
+<script src="https://cdn.botpress.cloud/webchat/v1/inject.js"></script>
+<script src="https://mediafiles.botpress.cloud/e17d2253-8550-481b-83e3-63fb0e9a7d6d/webchat/config.js" defer></script>
+<!-- Main Script -->
+<script src="js/script.js"></script>
+</body></html>

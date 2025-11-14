@@ -1,0 +1,86 @@
+Projenin Amacı
+- Çoklu tıbbi görüntü alanlarında (cilt, akciğer, kemik vb.) belirli sayıda hastalığı sınıflandırabilen yapay zekâ modellerini tek bir güvenli web platformunda birleştirerek kullanıcıya hızlı, anlaşılır ve uzman destekli ön tanı önerileri sunan uçtan uca bir karar destek sistemi geliştirmek.
+
+Piyasadaki Çözümlerle Farklar
+- Mevcut çözümlerin büyük bölümü yalnızca tek organ ya da sınırlı sayıdaki hastalık kategorisi için tasarlanırken bu proje, cilt, akciğer, kemik ve benzeri modalitelerin her biri için ayrı yapay zekâ model setlerini aynı platformda birleştiren bütüncül bir yaklaşım sunar. Kullanıcı geçmişi, raporlama, ikinci görüş modülü ve tele-tıp entegrasyonu gibi özellikler tüm modalitelerde ortak deneyim sağlar; açıklanabilirlik teknikleri (Grad-CAM, saliency, 3D ısı haritaları) ve etik uyarılar organa özel içeriklerle desteklenir. Ayrıca hem son kullanıcı hem de uzman/administrator panellerinde multi-modal filtreleme, model versiyonlama ve cihaz yönetimi gibi yetenekler yer alarak benzer projelere kıyasla daha kapsamlı bir yönetişim katmanı oluşturur.
+
+Fonksiyonel Gereksinimler
+- Kullanıcıların hesap oluşturması, güvenli şekilde giriş yapması ve oturumlarını yönetebilmesi.
+- Analiz edilecek kategori veya organın seçilmesi ve kullanıcıya uygun yönlendirmelerin sunulması.
+- İlgili görüntülerin platforma yüklenmesi ve temel kalite kontrollerinin gerçekleştirilmesi.
+- Yapay zekâ değerlendirmesinin çalıştırılması ve kullanıcıya anlamlı sonuç özetleriyle gösterilmesi.
+- Geçmiş incelemelerin kaydedilmesi, kullanıcı notları ve varsa ek yorumların saklanması.
+- Uzmanların sonuçları gözden geçirip gerektiğinde geri bildirim verebilmesi için özel arayüzlerin sağlanması.
+- Sistem yöneticilerinin roller, içerikler ve modeller üzerinde genel yönetim yetkilerine sahip olması.
+- Sonuçlar, geri bildirimler veya önemli güncellemeler için kullanıcıya bildirim gönderilmesi.
+- Kullanıcıların çıktılarını dışa aktarabilmesi ve gerekirse diğer sistemlerle paylaşabilmesi.
+
+Fonksiyonel Olmayan Gereksinimler
+- Kullanıcılara hızlı ve tutarlı yanıt süreleri sunulması, farklı görüntü türlerinde de kabul edilebilir performansın korunması.
+- Artan kullanıcı veya işlem hacmine göre altyapının otomatik olarak büyüyüp küçülebilmesi.
+- Kişisel sağlık verilerinin güvenli biçimde depolanması, yetkisiz erişimlerin engellenmesi ve mevzuata uyumun sağlanması.
+- Farklı cihaz ve kullanıcı ihtiyaçlarına uygun, erişilebilir ve çok dilli arayüzlerin sunulması.
+- Sistemin yüksek oranda kullanılabilir olması, yedekleme ve felaket kurtarma süreçlerinin hazır tutulması.
+- İşleyişin uçtan uca izlenebilmesi için kayıt, raporlama ve denetim mekanizmalarının bulunması.
+- Platformun tüm bileşenlerinde kalite standartlarına uygun geliştirme, test ve yayın süreçlerinin uygulanması.
+- Kullanıcı destek süreçlerinin açık ve hızlı olması; sık sorulan sorular, yardım içerikleri ve geri bildirim kanallarının erişilebilir tutulması.
+- Ürün deneyiminin farklı ülkelerdeki sağlık regülasyonları ve kültürel beklentilerle uyumlu olacak şekilde yerelleştirilebilmesi.
+- Sistem bileşenlerinin gelecekteki genişletmelere hazır olacak biçimde modüler tasarlanması.
+
+Olası ER Diyagramı (Tablolar ve ilişkiler özet)
+- Users (user_id, name, email, role, specialty, hashed_password, consent_flags, created_at)
+- Sessions (session_id, user_id, refresh_token, expires_at)
+- Modalities (modality_id, name, description, requirements)
+- Images (image_id, user_id, modality_id, storage_path, captured_at, metadata)
+- Diagnoses (diagnosis_id, image_id, disease_type_id, probabilities_json, status, expert_id, created_at)
+- DiseaseTypes (disease_type_id, modality_id, name, description, icd_code)
+- ExpertFeedback (feedback_id, diagnosis_id, expert_id, note, confidence, created_at)
+- Reports (report_id, diagnosis_id, file_url, generated_at, format)
+- AuditLogs (log_id, user_id, action, entity, payload, created_at)
+- İlişkiler: Users 1-N Images, Modalities 1-N Images, Modalities 1-N DiseaseTypes, Images 1-1 Diagnoses, DiseaseTypes 1-N Diagnoses, Diagnoses 1-N ExpertFeedback, Users (role=expert) 1-N ExpertFeedback, Users 1-N AuditLogs.
+
+Olası Use Case Senaryoları
+- Aktör: Kullanıcı → kayıt/giriş, modalite seçimi (cilt/akciğer/kemik), görüntü yükleme, sonuç görüntüleme, rapor indirme, geçmişi modalite bazlı filtreleme.
+- Aktör: Uzman/Doktor → görev listesi, modalite ve hastalık türüne göre filtreleme, yorum ekleme, sonucu onaylama/red, PACS’e rapor gönderme.
+- Aktör: Yönetici → kullanıcı/rol yönetimi, modalite bazlı model versiyonlama, sistem metriklerini izleme, audit geçmişini inceleme, kaynak ölçekleme ayarı.
+- Alternatif akışlar: görüntü modalite gereksinimlerini karşılamazsa kullanıcı yönlendirilir; yoğunlukta iş kuyruğuna alınıp sonuç hazır olunca bildirim gönderilir.
+
+Sistem Kısıtları
+- Modaliteye göre maksimum dosya boyutu: cilt için 10 MB, akciğer BT için 50 MB; desteklenen formatlar (JPEG/PNG/DICOM/HEIC).
+- Mobil tarayıcılarda kamera API erişimi, DICOM yükleme için masaüstü drag-drop ve PACS entegrasyonu gereksinimleri.
+- GPU/CPU kaynak havuzları ve model boyutuna bağlı inference kapasitesi; gerçek zamanlı ölçeklenme sınırları.
+- Sağlık verisi mevzuatı gereği modaliteye göre farklı depolama lokasyonları (örn. akciğer verisi hastane veri merkezinde).
+- Üçüncü parti API limitleri (e-posta, SMS, tele-tıp, PACS) ve lisans kısıtları.
+
+Başarı Ölçütleri
+- Modalite başına makro F1 ≥ %90, her sınıfta minimum %7 doğruluk; hata dağılımı dashboard’ları.
+- Ortalama inference süresi: cilt <2,5 sn, akciğer/kemik <4 sn; p95 hedefleri sırasıyla <4 sn ve <6 sn.
+- Haftalık aktif kullanıcı sayısı, modalite başına teşhis sayısı, rapor indirme ve uzman talebi dönüşüm oranları.
+- Uzman doğrulama uyumu (AI sonucu = uzman sonucu) ≥ %88 genel, modalite bazında ≥ %85.
+- Kullanıcı memnuniyet skoru (NPS, CSAT) ≥ 4/5 ve uzman memnuniyeti metrikleri.
+
+Front-End Teknolojileri
+- Çoklu modalite deneyimini yönetmek için React + Next.js tabanlı çok sayfalı mimari (SSR/SSG) ve TypeScript ile tip güvenliği.
+- Tasarım sistemi: Tailwind CSS veya Chakra UI üzerinde oluşturulmuş kurumsal UI kitleri; Headless UI/Radix bileşenleriyle erişilebilir sekmeler, wizard’lar, modalite kartları.
+- Global state ve gerçek zamanlı bildirimler için Zustand/Redux Toolkit + React Query; portalın hasta/uzman/yönetici bölümleri arasında paylaşılan store.
+- Uzman doktor paneli ile kullanıcı paneli arasında tutarlı navigasyon sağlamak için Next.js App Router + rol tabanlı layout’lar; mikro-frontend yaklaşımına hazır yapı.
+- Görüntülü görüşme ve canlı danışma için WebRTC tabanlı SDK’lar (Daily, Twilio, Vonage) ile entegre reusable component’ler; meeting scheduler ve kayıt modülleri.
+- Görselleştirme ve açıklanabilirlik öğeleri için Recharts/D3 ve Three.js tabanlı ısı haritaları; ağır etkileşimler için code-splitting ve dinamik import stratejileri.
+
+Back-End Teknolojileri
+- Ana API katmanı: Python FastAPI veya Node.js NestJS ile domain tabanlı mikro servisler; GraphQL/REST hibrit uç noktalar, gRPC tabanlı iç iletişim.
+- Modalite bazlı model servisleri: TensorFlow Serving, TorchServe veya NVIDIA Triton üzerinde ayrı inference kümeleri; versiyonlama, A/B ve gölge yayın desteği.
+- Asenkron işçiler ve orkestrasyon: Celery/Argo Workflows + Redis/RabbitMQ; büyük dosya ön işleme, rapor üretimi, video kaydı işleme ve uzman bildirim kuyrukları.
+- Veri katmanı: PostgreSQL/TimescaleDB (olay ve metrikler), MongoDB veya Elastic (esnek raporlar), obje depolama için S3 uyumlu MinIO, DICOM arşivi için Orthanc/PACS entegrasyonu.
+- Görüntülü görüşme servisleri ve doktor panelleri için WebRTC sinyalleme sunucusu (Janus/mediasoup) veya üçüncü parti API proxy’leri; kayıt, arşiv ve randevu takibi modülleri.
+- Kimlik doğrulama ve yetkilendirme: OAuth2.1/JWT + refresh token, kurumsal SSO (SAML/OIDC), rol/tenant bazlı erişim politikaları, audit logging.
+- API gateway & edge: Kong, Apigee veya AWS API Gateway; rate limiting, modalite bazlı SLA yönetimi ve mTLS desteği.
+
+Yardımcı Teknolojiler
+- Konteyner ve altyapı otomasyonu: Docker, Kubernetes (AKS/EKS/GKE) + Helm/Terraform; modalite bazlı node pool, GPU planlaması ve otomatik ölçekleme.
+- CI/CD zinciri: GitHub Actions/GitLab CI + Argo CD; kod kalite kontrolü (pre-commit, black, eslint, sonar) ve model versiyonlama pipeline’ları.
+- Gözlemlenebilirlik: Prometheus/Grafana, Loki veya ELK stack, OpenTelemetry tabanlı tracing; modaliteye göre paneller ve alarm kuralları.
+- Depolama ve önbellek: AWS S3/Azure Blob/GCP Storage, Redis/Memcached, global CDN; DICOM için AWS HealthLake Imaging, Orthanc veya on-prem PACS.
+- MLOps ve deney izleme: MLflow veya Vertex AI, DVC, Weights & Biases; otomatik retraining tetikleyicileri ve model governance süreçleri.
+- Güvenlik ve uyumluluk: HashiCorp Vault/Secrets Manager, Snyk/Trivy/Anchore taramaları, SonarQube; erişim için Teleport/Boundary, SIEM entegrasyonları.
+

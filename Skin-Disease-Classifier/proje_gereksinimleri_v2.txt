@@ -1,0 +1,75 @@
+Projenin Amacı
+- Kullanıcıların web sitesine giriş yaparak seçtikleri modaliteye ait görüntüyü yükleyip yapay zekâdan sınıflandırma sonucu alabildiği, doktorlarla mesajlaşma ve görüntülü görüşme yapabildiği temel bir tele-sağlık aracı geliştirmek.
+
+Piyasadaki Çözümlerle Farklar
+- Aynı hesap içinde birden fazla modaliteyi destekler, kullanıcıyı farklı uygulamalara yönlendirmez.
+- Doktor mesajlaşması ve görüntülü görüşme özelliği tek ekrandan erişilebilir; süreç dış servisler yerine platform içinde yürütülür.
+- Kullanıcı ve doktor panelleri aynı sade tasarım sistemini paylaşır; böylece bakım maliyeti düşer.
+
+Fonksiyonel Gereksinimler
+- Kullanıcı kayıt, giriş, çıkış ve şifre sıfırlama akışı.
+- Modalite seçim kutusu, kısa yönergeler ve görüntü yükleme bileşeni.
+- Görüntü ve modalite bilgisiyle AI sınıflandırmasının tetiklenmesi; sonuç ekranında hastalık adı + olasılık gösterimi.
+- Kullanıcı ile doktor arasında gerçek zamanlı mesajlaşma ve dosya paylaşımı.
+- Doktor paneli: bekleyen vakalar, gelen mesajlar, AI sonucu ve doktor yorum alanı.
+- Basit görüntülü görüşme planlama ve tarayıcı içi WebRTC araması.
+- Kullanıcı geçmişi ekranı: yüklemeler, sonuçlar, mesaj ve görüşme kayıtları.
+
+Fonksiyonel Olmayan Gereksinimler
+- Kullanıcıların beklemeden sonuç görebileceği, akıcı performansa sahip web ve API katmanı.
+- Beklenmedik yük artışlarını karşılayabilecek şekilde esneyen altyapı.
+- Sağlık verilerinin gizliliğini koruyan, şifrelenmiş ve rol bazlı erişimle yönetilen güvenlik politikaları.
+- Masaüstü, tablet ve mobilde tutarlı çalışan, erişilebilir arayüzler.
+- Yüksek erişilebilirlik, düzenli yedekleme ve kriz anında hızlı toparlanma planları.
+- Kaynak kodunun sürüm kontrollü yönetimi, otomatik test ve dağıtım süreçleriyle desteklenen geliştirme döngüsü.
+
+Olası ER Diyagramı (özet)
+- Users (user_id, role[patient/doctor/admin], name, email, hashed_password, created_at)
+- Modalities (modality_id, name, instructions, max_file_size)
+- Images (image_id, user_id, modality_id, file_url, uploaded_at)
+- Diagnoses (diagnosis_id, image_id, disease_label, probability, notes, created_at)
+- Messages (message_id, conversation_id, sender_id, receiver_id, body, attachment_url, sent_at)
+- Conversations (conversation_id, user_id, doctor_id, last_activity_at)
+- Calls (call_id, user_id, doctor_id, meeting_link, scheduled_at, status, recording_url)
+- AuditLogs (log_id, user_id, action, entity, payload, created_at)
+
+Olası Use Case Senaryoları
+- Kullanıcı: kayıt/giriş, modalite seçimi, görüntü yükleme, sonuç alma, doktorla mesajlaşma/görüşme planlama, geçmişi görme.
+- Doktor: davetle kayıt, giriş, bekleyen vakaları görme, AI sonucuna yorum ekleme, mesajlara yanıt verme, görüntülü görüşme açma.
+- Yönetici: kullanıcı/rol yönetimi, modalite listesi ve temel sistem ayarlarını düzenleme.
+
+Sistem Kısıtları
+- Dosya boyutu ve format limitleri modaliteye göre tanımlanmalı (cilt JPEG/PNG ≤10 MB, akciğer DICOM ≤50 MB).
+- WebRTC için tarayıcı uyumluluğu ve yeterli bant genişliği gereklidir.
+- Doktor hesapları için lisans doğrulaması ve veri saklama ülke/servis sağlayıcı kısıtları.
+- Mesaj/e-posta/WebRTC servislerinin kota ve maliyet sınırları.
+
+Başarı Ölçütleri
+- AI sonuç doğruluğu (macro F1 ≥ %85) ve kullanıcı memnuniyeti (CSAT ≥ 4/5).
+- Doktor mesaj yanıt süresi ortalaması <2 saat; planlanan görüşmelerin %80’inin tamamlanması.
+- Sistem kullanılabilirliği ≥ %99,5; kritik sorun çözüm süresi <24 saat.
+- Günlük aktif kullanıcı ve doktor sayılarının hedeflenen artış oranına ulaşması.
+
+Front-End Teknolojileri
+- React + Next.js (App Router) + TypeScript ile iki temel layout: kullanıcı portalı ve doktor portalı.
+- NextAuth.js (Auth.js) ile kimlik doğrulama; JWT veya database session stratejisi, rol bazlı middleware.
+- Tailwind CSS veya Chakra UI ile sade bileşenler; Headless UI tab’leriyle modalite seçim akışı.
+- State ve veri yönetimi: TanStack Query v5 (React Query) + React Context API; Supabase Real-time ile canlı mesajlar.
+- Görüntülü görüşme için LiveKit (açık kaynak WebRTC framework, React SDK); toplantı planlama modal'ı.
+
+
+Back-End Teknolojileri
+- REST tabanlı ana API: Next.js API Routes (Vercel/Serverless) veya Python FastAPI/Node.js NestJS; NextAuth.js session token'ları ile entegrasyon, rol kontrolleri.
+- AI servisleri: TensorFlow Serving/TorchServe; modalite ID'sine göre doğru modele yönlendirme; Next.js API route üzerinden async/await veya background job pattern.
+- Asenkron işler: Next.js API Routes + polling/webhook pattern; gerektiğinde Celery + Redis kuyruğu.
+- Veri depolama: Supabase (PostgreSQL database, Storage, Real-time subscriptions); NextAuth.js ile Supabase Auth entegrasyonu.
+- Mesajlaşma: Supabase Real-time (mesajlaşma için); LiveKit server (görüntülü görüşme, self-hosted veya LiveKit Cloud).
+- Audit ve loglama: Structured logging (JSON format, Winston/Pino); Supabase PostgreSQL tablosunda audit logları; gerektiğinde merkezi log sistemi (ELK/CloudWatch).
+
+Yardımcı Teknolojiler
+- Deployment: Vercel (Next.js front-end, otomatik CI/CD); Railway veya Render (back-end API, TensorFlow Serving); Supabase (database, storage, real-time); gerektiğinde Docker + Kubernetes'e geçiş.
+- GitHub Actions tabanlı CI/CD; test, lint ve otomatik deploy adımları.
+- Monitoring/loglama: Vercel Analytics (front-end metrikleri, Next.js entegrasyonu); back-end için basit loglama veya gerektiğinde Prometheus + Grafana; temel uptime alarmları.
+- Model versiyonlama: Git (model metadata, eğitim scriptleri) + S3 versioning (model dosyaları); gerektiğinde MLflow veya DVC’ye geçiş.
+- Güvenlik/gizli yönetimi: Environment variables (.env dosyaları, Docker secrets); gerektiğinde HashiCorp Vault veya bulut sağlayıcının Secrets Manager’ı; Dependabot/Snyk taramaları.
+- İletişim servisleri: Resend (e-posta), Web Push API (tarayıcı push bildirimleri), Twilio (SMS, opsiyonel).
