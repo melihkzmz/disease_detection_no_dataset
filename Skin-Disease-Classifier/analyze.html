@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hastalık Analiz Sistemi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        select, input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input[type="file"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        select {
+            background: white;
+            cursor: pointer;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-upload-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .file-upload-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-upload-button:active {
+            transform: translateY(0);
+        }
+
+        input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .image-preview {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: none;
+        }
+
+        .image-preview img.show {
+            display: inline-block;
+        }
+
+        .analyze-button {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .analyze-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .analyze-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .results h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .result-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-item:first-child {
+            border-left-color: #f5576c;
+            font-weight: 600;
+        }
+
+        .result-label {
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .result-probability {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 1.2em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-size: 1.2em;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .model-status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .model-status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .model-status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .model-status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🩺 Hastalık Analiz Sistemi</h1>
+        <p class="subtitle">Yapay zeka destekli görüntü analizi</p>
+
+        <div id="model-status" class="model-status loading">Model yükleniyor...</div>
+
+        <div class="form-group">
+            <label for="disease-type">Hastalık Türü Seçin:</label>
+            <select id="disease-type">
+                <option value="">-- Seçiniz --</option>
+                <option value="bone">Kemik Hastalıkları</option>
+                <option value="skin">Deri Hastalıkları</option>
+                <option value="lung">Akciğer Hastalıkları</option>
+                <option value="eye">Göz Hastalıkları</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="image-input">Görüntü Yükleyin:</label>
+            <div class="file-upload-wrapper">
+                <button class="file-upload-button" onclick="document.getElementById('image-input').click(); return false;">
+                    📁 Dosya Seç
+                </button>
+                <input type="file" id="image-input" accept="image/*">
+            </div>
+            <div class="image-preview">
+                <img id="preview-image" alt="Önizleme">
+            </div>
+        </div>
+
+        <button class="analyze-button" id="analyze-button" onclick="analyzeImage()" disabled>
+            🔍 Analiz Et
+        </button>
+
+        <div class="loading" id="loading">Analiz yapılıyor, lütfen bekleyin...</div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <h2>📊 Analiz Sonuçları</h2>
+            <div id="gradcam-container" style="margin-bottom: 20px; display: none;">
+                <h3 style="margin-bottom: 10px; color: #333;">🔍 Model Odak Bölgeleri (Grad-CAM)</h3>
+                <img id="gradcam-image" style="max-width: 100%; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);" alt="Grad-CAM Visualization">
+                <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
+                    Kırmızı/sarı bölgeler modelin en çok dikkat ettiği alanları gösterir.
+                </p>
+            </div>
+            <div id="results-list"></div>
+        </div>
+    </div>
+
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    <script>
+        // Model ve sınıf tanımlamaları
+        let currentModel = null;
+        let modelReady = false;
+        let currentClasses = {};
+
+        // Model yolları ve sınıfları
+        const modelConfigs = {
+            bone: {
+                // Backend API kullan (localhost)
+                useBackend: true,
+                apiUrl: 'http://localhost:5002/predict',
+                classes: {
+                    0: 'Normal',
+                    1: 'Fracture',
+                    2: 'Benign_Tumor',
+                    3: 'Malignant_Tumor'
+                }
+            },
+            skin: {
+                useBackend: false,
+                path: './final_model_kaggle_version1/model.json',
+                classes: {
+                    0: 'Actinic Keratoses',
+                    1: 'Basal Cell Carcinoma',
+                    2: 'Benign Keratosis',
+                    3: 'Dermatofibroma',
+                    4: 'Melanoma',
+                    5: 'Melanocytic Nevi',
+                    6: 'Vascular Lesions'
+                }
+            },
+            lung: {
+                useBackend: false,
+                path: './models/lung_disease_model.keras',
+                classes: {
+                    0: 'Normal',
+                    1: 'Pneumonia'
+                }
+            },
+            eye: {
+                useBackend: false,
+                path: './models/eye_disease_model_5class.keras',
+                classes: {
+                    0: 'Normal',
+                    1: 'Cataract',
+                    2: 'Glaucoma',
+                    3: 'Retina Disease',
+                    4: 'Other'
+                }
+            }
+        };
+
+        // Model yükleme
+        async function loadModel(diseaseType) {
+            const config = modelConfigs[diseaseType];
+            if (!config) {
+                showError('Geçersiz hastalık türü seçildi.');
+                return;
+            }
+
+            try {
+                updateModelStatus('loading', 'Model yükleniyor...');
+                
+                // Backend API kullanımı kontrolü
+                if (config.useBackend) {
+                    // Backend API'yi kontrol et - gerçek bağlantı testi
+                    updateModelStatus('loading', 'Backend API kontrol ediliyor...');
+                    
+                    try {
+                        // API durumunu kontrol et (GET / endpoint) - timeout ile
+                        const statusUrl = config.apiUrl.replace('/predict', '/');
+                        
+                        // Timeout controller ekle (3 saniye)
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 3000);
+                        
+                        const response = await fetch(statusUrl, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            signal: controller.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
+                        
+                        if (!response.ok) {
+                            throw new Error(`API yanıt vermedi: ${response.status}`);
+                        }
+                        
+                        const data = await response.json();
+                        
+                        // API çalışıyor
+                        currentModel = 'backend';
+                        currentClasses = config.classes;
+                        modelReady = true;
+                        updateModelStatus('ready', '✅ Backend API hazır! Analiz yapabilirsiniz.');
+                        document.getElementById('analyze-button').disabled = false;
+                        
+                    } catch (error) {
+                        console.error('API bağlantı hatası:', error);
+                        console.error('Error name:', error.name);
+                        console.error('Error message:', error.message);
+                        
+                        let errorMessage = '❌ Backend API\'ye bağlanılamıyor! ';
+                        
+                        if (error.name === 'AbortError') {
+                            errorMessage += 'Bağlantı zaman aşımına uğradı (3 saniye). ';
+                        } else if (error.message && error.message.includes('Failed to fetch')) {
+                            errorMessage += 'API kapalı olabilir. ';
+                        } else if (error.message) {
+                            errorMessage += error.message + '. ';
+                        } else {
+                            errorMessage += 'Bilinmeyen bağlantı hatası. ';
+                        }
+                        
+                        errorMessage += 'API\'yi başlatmak için: python bone_disease_api.py';
+                        
+                        // Hata mesajını garantili göster
+                        updateModelStatus('error', errorMessage);
+                        currentModel = null;
+                        modelReady = false;
+                        const analyzeBtn = document.getElementById('analyze-button');
+                        if (analyzeBtn) {
+                            analyzeBtn.disabled = true;
+                        }
+                        console.log('Hata mesajı gösterildi:', errorMessage);
+                    }
+                    return;
+                }
+                
+                let modelPath = config.path;
+                
+                // .keras dosyası kontrolü
+                if (modelPath.endsWith('.keras')) {
+                    updateModelStatus('error', 
+                        '❌ .keras formatı TensorFlow.js ile kullanılamaz!\n\n' +
+                        '📋 Çözüm: Backend API kullanın veya modeli dönüştürün');
+                    currentModel = null;
+                    modelReady = false;
+                    return;
+                }
+
+                // TensorFlow.js model yükleme
+                console.log('Model yükleniyor:', modelPath);
+                currentModel = await tf.loadLayersModel(modelPath);
+                currentClasses = config.classes;
+                modelReady = true;
+                updateModelStatus('ready', '✅ Model hazır! Analiz yapabilirsiniz.');
+                document.getElementById('analyze-button').disabled = false;
+                
+            } catch (error) {
+                console.error('Model yükleme hatası:', error);
+                updateModelStatus('error', 
+                    '❌ Model yüklenemedi!\n\n' +
+                    'Kontrol edin:\n' +
+                    '• Model dosyası mevcut mu?\n' +
+                    '• Dosya yolları doğru mu?\n' +
+                    '• Backend API kullanmayı deneyin');
+                currentModel = null;
+                modelReady = false;
+            }
+        }
+
+        // Model durumu güncelleme
+        function updateModelStatus(status, message) {
+            const statusDiv = document.getElementById('model-status');
+            statusDiv.className = 'model-status ' + status;
+            statusDiv.textContent = message;
+        }
+
+        // Görüntü önizleme
+        document.getElementById('image-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = document.getElementById('preview-image');
+                    img.src = event.target.result;
+                    img.classList.add('show');
+                    document.getElementById('analyze-button').disabled = !modelReady;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Hastalık türü değiştiğinde
+        document.getElementById('disease-type').addEventListener('change', function(e) {
+            const diseaseType = e.target.value;
+            if (diseaseType) {
+                loadModel(diseaseType);
+                document.getElementById('analyze-button').disabled = true;
+                document.getElementById('results').classList.remove('show');
+            } else {
+                currentModel = null;
+                modelReady = false;
+                updateModelStatus('loading', 'Hastalık türü seçin...');
+            }
+        });
+
+        // Analiz fonksiyonu
+        async function analyzeImage() {
+            if (!modelReady || !currentModel) {
+                showError('Lütfen önce model yüklenmesini bekleyin.');
+                return;
+            }
+
+            const fileInput = document.getElementById('image-input');
+            if (!fileInput.files || !fileInput.files[0]) {
+                showError('Lütfen bir görüntü seçin.');
+                return;
+            }
+
+            try {
+                // UI güncelleme
+                document.getElementById('loading').classList.add('show');
+                document.getElementById('results').classList.remove('show');
+                document.getElementById('error').classList.remove('show');
+                document.getElementById('analyze-button').disabled = true;
+
+                const config = modelConfigs[document.getElementById('disease-type').value];
+                
+                // Backend API kullanımı
+                if (currentModel === 'backend' && config.useBackend) {
+                    const formData = new FormData();
+                    formData.append('image', fileInput.files[0]);
+                    formData.append('with_gradcam', 'true'); // Grad-CAM'i etkinleştir
+
+                    const response = await fetch(config.apiUrl, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API hatası: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    // Backend'den gelen sonuçları dönüştür
+                    const results = data.top_3.map(item => ({
+                        probability: item.confidence,
+                        className: item.class_tr || item.class
+                    }));
+
+                    // Grad-CAM görselleştirmesini göster
+                    if (data.gradcam) {
+                        const gradcamImg = document.getElementById('gradcam-image');
+                        gradcamImg.src = data.gradcam;
+                        document.getElementById('gradcam-container').style.display = 'block';
+                    } else {
+                        document.getElementById('gradcam-container').style.display = 'none';
+                        if (data.gradcam_error) {
+                            console.warn('Grad-CAM hatası:', data.gradcam_error);
+                        }
+                    }
+
+                    displayResults(results);
+
+                } else {
+                    // TensorFlow.js model kullanımı
+                    const image = document.getElementById('preview-image');
+                    const tensor = tf.browser.fromPixels(image)
+                        .resizeNearestNeighbor([224, 224])
+                        .toFloat();
+
+                    const offset = tf.scalar(127.5);
+                    const normalized = tensor.sub(offset)
+                        .div(offset)
+                        .expandDims();
+
+                    // Tahmin yap
+                    const predictions = await currentModel.predict(normalized).data();
+
+                    // Sonuçları işle
+                    const results = Array.from(predictions)
+                        .map((prob, index) => ({
+                            probability: prob,
+                            className: currentClasses[index] || `Sınıf ${index}`
+                        }))
+                        .sort((a, b) => b.probability - a.probability)
+                        .slice(0, 3);
+
+                    // Sonuçları göster
+                    displayResults(results);
+
+                    // Bellek temizliği
+                    tensor.dispose();
+                    normalized.dispose();
+                }
+
+            } catch (error) {
+                console.error('Analiz hatası:', error);
+                showError('Analiz sırasında bir hata oluştu: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('analyze-button').disabled = !modelReady;
+            }
+        }
+
+        // Sonuçları gösterme
+        function displayResults(results) {
+            const resultsList = document.getElementById('results-list');
+            resultsList.innerHTML = '';
+
+            results.forEach((result, index) => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result-item';
+                
+                const label = document.createElement('span');
+                label.className = 'result-label';
+                label.textContent = result.className;
+
+                const probability = document.createElement('span');
+                probability.className = 'result-probability';
+                probability.textContent = (result.probability * 100).toFixed(2) + '%';
+
+                resultDiv.appendChild(label);
+                resultDiv.appendChild(probability);
+                resultsList.appendChild(resultDiv);
+            });
+
+            document.getElementById('results').classList.add('show');
+        }
+
+        // Hata gösterme
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+        }
+    </script>
+</body>
+</html>
+

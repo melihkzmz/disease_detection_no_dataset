@@ -1,0 +1,203 @@
+BACK-END TEKNOLOJİLERİNİN PROJEYE SAĞLADIĞI YARARLAR
+================================================================================
+
+1. TENSORFLOW SERVING / TORCHSERVE
+--------------------------------------------------------------------------------
+
+TensorFlow Serving ve TorchServe, eğitilmiş AI modellerimizi production ortamında 
+çalıştırmak için kullandığımız model servis altyapılarıdır. Bu teknolojiler, projemizin 
+en kritik bileşenlerinden biridir çünkü kullanıcıların yüklediği görüntüleri analiz 
+ederek hastalık sınıflandırması yapan AI modellerimizi yüksek performansla çalıştırırlar.
+
+TensorFlow Serving'in en önemli yararı, GPU desteği ile çok hızlı inference (tahmin) 
+yapabilmesidir. Eğitilmiş modellerimiz (cilt, akciğer, kemik için ayrı modeller) 
+sunucuda sürekli yüklü kalır ve her istekte model yüklenmesi gerekmez, bu da çok 
+daha hızlı yanıt süreleri sağlar. Ayrıca birden fazla model instance'ı çalıştırarak 
+yüksek trafikli durumlarda ölçeklenebilirlik sağlar. Model versiyonlama özelliği 
+sayesinde farklı model versiyonlarını (v1, v2, v3) aynı anda yönetebilir, A/B testing 
+yapabilir ve sorun olursa eski versiyona geri dönebiliriz.
+
+Projede kullanımı şu şekilde çalışır: Kullanıcı bir görüntü yüklediğinde ve modalite 
+seçtiğinde (cilt, akciğer veya kemik), Next.js API Route bu isteği alır ve modalite 
+ID'sine göre doğru model servisine yönlendirir. Görüntü TensorFlow Serving'e gönderilir, 
+model analiz yapar ve hastalık sınıfı ile olasılık değerini döner. Her modalite için 
+ayrı model servisi çalıştığı için sistem modüler ve bakımı kolaydır.
+
+Bu teknoloji olmadan, model dosyalarını direkt Python'da çalıştırmak gerekirdi ki bu 
+çok yavaş ve ölçeklenemez olurdu. Her istekte model yüklenmesi gerekir, bu da saniyeler 
+sürer ve kullanıcı deneyimini bozar. GPU yönetimi de manuel olurdu ve kaynak kullanımı 
+verimsiz olurdu. TensorFlow Serving sayesinde modellerimiz production-ready bir şekilde, 
+yüksek performansla çalışabilir.
+
+
+2. SUPABASE (BACK-END KISMI)
+--------------------------------------------------------------------------------
+
+Supabase, projemizin veri katmanını oluşturan yönetilen bir servistir ve PostgreSQL 
+veritabanı, dosya depolama (Storage) ve real-time subscriptions özelliklerini tek 
+bir platformda sunar. Bu teknoloji, back-end mimarisinin temel taşlarından biridir 
+çünkü tüm kullanıcı verileri, görüntü kayıtları, tanı sonuçları ve mesajlar burada 
+saklanır.
+
+Supabase'in en büyük yararı, yönetilen bir servis olmasıdır. Yedekleme, ölçeklenme 
+ve güvenlik güncellemeleri otomatik olarak yapılır, bu da operasyon yükünü sıfıra 
+indirir. Row Level Security (RLS) özelliği sayesinde veritabanı seviyesinde güvenlik 
+kontrolü yapılır; örneğin bir kullanıcı sadece kendi görüntülerini görebilir, başkasının 
+verisine erişemez. Bu güvenlik kontrolü veritabanı seviyesinde olduğu için, front-end'de 
+yanlışlıkla yapılan bir hata bile güvenlik açığı yaratmaz.
+
+Real-time subscriptions özelliği, mesajlaşma sistemimiz için kritiktir. PostgreSQL 
+tablosundaki herhangi bir değişiklik (yeni mesaj eklendiğinde) WebSocket üzerinden 
+anında front-end'e iletilir. Bu sayede kullanıcılar sayfayı yenilemeden yeni mesajları 
+görebilir, gerçek zamanlı bir iletişim deneyimi yaşar. Storage servisi ile yüklenen 
+görüntü dosyaları da Supabase'de saklanır, böylece veritabanı ve dosya depolama tek 
+bir platformda yönetilir.
+
+Projede kullanımı şu şekildedir: Kullanıcı verileri, görüntü kayıtları, tanı sonuçları 
+ve mesajlar PostgreSQL veritabanında saklanır. Yüklenen görüntü dosyaları Supabase 
+Storage'da tutulur ve her görüntü için bir URL oluşturulur. Mesajlaşma sistemi, Real-time 
+subscriptions sayesinde anında çalışır; kullanıcı bir mesaj gönderdiğinde, doktor anında 
+görür.
+
+Bu teknoloji olmadan, kendi PostgreSQL sunucusunu kurmak, yedekleme ve scaling'i manuel 
+yapmak, ayrı bir WebSocket sunucusu kurmak (mesajlaşma için) ve ayrı bir S3 veya MinIO 
+kurulumu yapmak (dosya depolama için) gerekirdi. Bu da çok yüksek operasyon yükü ve 
+geliştirme süresi demektir. Supabase sayesinde tüm bu altyapı hazır gelir ve geliştirmeye 
+odaklanabiliriz.
+
+
+3. FASTAPI (OPSIYONEL - İLERİDE KULLANILABİLİR)
+--------------------------------------------------------------------------------
+
+FastAPI, Python tabanlı yüksek performanslı bir REST API framework'üdür ve projemizde 
+ileride kullanılabilecek bir alternatif olarak değerlendirilmektedir. Next.js API Routes 
+yetersiz kaldığında veya özel gereksinimler ortaya çıktığında bu teknolojiye geçiş 
+yapılabilir.
+
+FastAPI'nin en önemli avantajı, Python ekosistemine tam erişim sağlamasıdır. NumPy, 
+Pandas gibi veri işleme kütüphaneleri veya özel ML pipeline'ları kullanılabilir. 
+Async/await desteği sayesinde yüksek performanslı, eşzamanlı işlemler yapılabilir. 
+Otomatik Swagger/OpenAPI dokümantasyonu oluşturulur, bu da API'nin kullanımını kolaylaştırır. 
+Pydantic ile request/response validation yapılır, tip güvenliği sağlanır.
+
+Next.js API Routes'un Vercel'de 10 saniye execution time limiti vardır. Uzun süren AI 
+analizleri, batch processing veya rapor üretme gibi işlemler bu limiti aşabilir. FastAPI 
+ise Railway veya Render gibi platformlarda sürekli çalışan bir servis olarak çalışır, 
+böyle bir limit yoktur. Background tasks desteği ile uzun süren işlemler arka planda 
+yürütülebilir. WebSocket desteği de built-in'dir, gerçek zamanlı iletişim için kullanılabilir.
+
+Projede kullanımı şu durumlarda gerekli olabilir: Büyük görüntü batch işleme, uzun 
+süren AI analizleri (10 saniyeden fazla), Python-specific ML pipeline'ları, kompleks 
+veri dönüşümleri veya rapor üretme gibi ağır hesaplamalar. Bu durumlarda FastAPI, 
+Railway veya Render'da ayrı bir servis olarak çalışır ve Next.js API Routes'a göre 
+daha fazla kaynak ve esneklik sağlar.
+
+Bu teknoloji olmadan, Next.js API Routes'un limitleri nedeniyle uzun süren işlemler 
+için ayrı bir worker servisi kurmak veya işlemleri parçalara bölmek gerekirdi. Python 
+kütüphaneleri kullanılamazdı ve bazı özel ML pipeline'ları implemente edilemezdi. 
+FastAPI sayesinde bu sınırlamalar aşılabilir ve daha esnek bir backend mimarisi 
+oluşturulabilir.
+
+
+4. LIVEKIT SERVER (GÖRÜNTÜLÜ GÖRÜŞME)
+--------------------------------------------------------------------------------
+
+LiveKit, WebRTC tabanlı açık kaynaklı bir görüntülü görüşme framework'üdür ve projemizde 
+kullanıcılar ile doktorlar arasındaki görüntülü görüşmeleri sağlamak için kullanılır. 
+Bu teknoloji, tele-sağlık platformumuzun önemli bir özelliğidir çünkü kullanıcıların 
+doktorlarla gerçek zamanlı iletişim kurmasını sağlar.
+
+LiveKit'in en büyük avantajı, açık kaynak olması ve hem self-hosted hem de managed 
+(LiveKit Cloud) seçenekleri sunmasıdır. MVP aşamasında self-hosted olarak Railway 
+veya Render'da çalıştırılabilir, maliyet kontrolü sağlanır. Proje büyüdükçe LiveKit 
+Cloud'a geçiş yapılabilir, operasyon yükü azaltılır. WebRTC teknolojisi sayesinde 
+tarayıcı içinde çalışır, kullanıcıların ekstra plugin veya uygulama yüklemesine gerek 
+yoktur. Düşük gecikme ile gerçek zamanlı iletişim sağlar, bu da tele-sağlık uygulamaları 
+için kritiktir.
+
+LiveKit, yüksek kullanıcı sayısını destekleyecek şekilde ölçeklenebilir. Kayıt desteği 
+sayesinde görüşmeler kaydedilebilir, daha sonra inceleme için saklanabilir. Ekran 
+paylaşımı özelliği ile doktorlar görüntüleri paylaşabilir, daha etkili konsültasyon 
+yapılabilir. iOS ve Android SDK'ları sayesinde mobil uyumluluk da sağlanır. Açık 
+kaynak olduğu için özelleştirilebilir, projeye özel özellikler eklenebilir.
+
+Projede kullanımı şu şekilde çalışır: Kullanıcı doktorla görüşme planlamak için bir 
+modal kullanır, tarih ve saat seçer. Planlanan görüşme bilgileri veritabanına kaydedilir. 
+Görüşme zamanı geldiğinde, Next.js API Route LiveKit server'a bir room oluşturur ve 
+her iki tarafa da token verir. Kullanıcı ve doktor bu token'lar ile LiveKit room'una 
+katılır ve WebRTC üzerinden görüntülü görüşme yaparlar. Signaling ve media processing 
+LiveKit server tarafından yönetilir.
+
+Bu teknoloji olmadan, Twilio veya Daily.co gibi ücretli servisler kullanmak gerekirdi, 
+bu da maliyeti artırırdı ve özelleştirme sınırlı olurdu. Alternatif olarak kendi WebRTC 
+sunucusunu kurmak gerekirdi ki bu çok karmaşık ve zaman alıcı bir süreçtir. LiveKit 
+sayesinde açık kaynak bir çözümle, esnek ve özelleştirilebilir bir görüntülü görüşme 
+sistemi kurulabilir.
+
+
+5. NEXT.JS API ROUTES (BACK-END KISMI)
+--------------------------------------------------------------------------------
+
+Next.js API Routes, Next.js framework'ünün bir parçasıdır ve REST API endpoint'leri 
+oluşturmak için kullanılır. Projemizde back-end mimarisinin temel bileşenlerinden 
+biridir çünkü front-end ile back-end arasındaki iletişimi sağlar ve basit işlemleri 
+yönetir.
+
+Next.js API Routes'un en büyük avantajı, front-end ve API'nin aynı projede olmasıdır. 
+Ayrı bir backend sunucusu kurmaya gerek yoktur, bu da geliştirme süresini kısaltır 
+ve operasyon yükünü azaltır. Vercel'de serverless olarak çalışır, trafik arttıkça 
+otomatik ölçeklenir. GitHub'a push yapıldığında otomatik olarak build edilip deploy 
+edilir, CI/CD süreci tamamen otomatikleşir. TypeScript desteği sayesinde tip güvenli 
+API geliştirme yapılabilir, hatalar compile-time'da yakalanır.
+
+Middleware özelliği sayesinde rol bazlı erişim kontrolü kolayca yapılır. Örneğin 
+doktor portalına sadece doktor rolündeki kullanıcılar erişebilir, bu kontrol middleware 
+seviyesinde yapılır. Dosya yapısı (app/api/ klasörü) sayesinde API endpoint'leri 
+organize bir şekilde tutulur ve otomatik routing sağlanır. NextAuth.js ile entegrasyon 
+kolaydır, session yönetimi built-in'dir.
+
+Projede kullanımı şu şekildedir: Basit CRUD işlemleri (kullanıcı kayıt, görüntü yükleme), 
+TensorFlow Serving'e proxy yapma (AI analizi başlatma), kısa süreli işlemler (10 
+saniyeden kısa) ve NextAuth.js entegrasyonu için kullanılır. Örneğin kullanıcı bir 
+görüntü yüklediğinde, API Route görüntüyü doğrular, Supabase Storage'a yükler, TensorFlow 
+Serving'e analiz için gönderir ve sonucu veritabanına kaydeder.
+
+Bu teknoloji olmadan, ayrı bir backend sunucusu (FastAPI veya NestJS) kurmak, ayrı 
+bir deployment süreci yönetmek, CORS ayarları yapmak ve daha fazla operasyon yükü 
+almak gerekirdi. Next.js API Routes sayesinde tüm bu karmaşıklık ortadan kalkar ve 
+hızlı geliştirme yapılabilir. Ancak uzun süren işlemler veya özel gereksinimler için 
+FastAPI gibi alternatiflere geçiş yapılabilir, bu da mimarinin esnekliğini gösterir.
+
+
+GENEL BACK-END MİMARİSİ VE TEKNOLOJİ İŞBÖLÜMÜ
+--------------------------------------------------------------------------------
+
+Projemizin back-end mimarisi, her teknolojinin kendi sorumluluğunda olduğu modüler 
+bir yapıya sahiptir. Next.js API Routes basit ve hızlı işlemleri yönetir, TensorFlow 
+Serving AI model çalıştırmayı üstlenir, Supabase veri depolama ve real-time özellikleri 
+sağlar, LiveKit görüntülü görüşme servisini yönetir ve FastAPI (opsiyonel) uzun süren, 
+ağır işlemler için kullanılabilir.
+
+Veri akışı şu şekilde çalışır: Kullanıcı bir istek yaptığında (örneğin görüntü analizi), 
+istek önce Next.js API Route'a gelir. Burada güvenlik kontrolü, doğrulama ve rol kontrolü 
+yapılır. Sonra istek, işlem tipine göre TensorFlow Serving'e (AI analizi için) veya 
+Supabase'e (veri işleme için) yönlendirilir. AI analizi yapıldıysa, sonuç Supabase 
+PostgreSQL veritabanına kaydedilir. Front-end'e sonuç döner ve Supabase Real-time 
+sayesinde anında güncelleme yapılır.
+
+Bu mimari sayesinde hızlı geliştirme yapılabilir çünkü managed servisler kullanılır 
+ve hazır çözümlerden yararlanılır. Otomatik scaling ile trafik arttıkça sistem kendini 
+ölçeklendirir. GPU desteği, cache mekanizmaları ve optimizasyonlar sayesinde yüksek 
+performans sağlanır. Row Level Security, şifreleme ve otomatik güvenlik güncellemeleri 
+ile güvenlik garanti edilir. Operasyon yükü minimumdur çünkü yönetilen servisler 
+kullanılır ve otomatik yedekleme yapılır.
+
+Maliyet açısından başlangıçta düşük maliyetle başlanır, kullanıma göre ölçeklenir. 
+İleride Docker ve Kubernetes'e geçiş yapılabilir, bu da mimarinin esnekliğini gösterir. 
+WebSocket ve Real-time subscriptions sayesinde gerçek zamanlı iletişim sağlanır. 
+Her teknoloji kendi sorumluluğunda olduğu için bakımı kolaydır ve sistem modülerdir.
+
+Bu teknolojiler olmadan, kendi sunucularını kurmak, operasyon yükünü yönetmek, yedekleme 
+ve scaling'i manuel yapmak gerekirdi. Bu da çok yüksek operasyon yükü, uzun geliştirme 
+süresi, ölçeklenebilirlik sorunları ve güvenlik riskleri demektir. Kullanılan teknolojiler 
+sayesinde tüm bu sorunlar çözülür ve geliştirmeye odaklanılabilir.

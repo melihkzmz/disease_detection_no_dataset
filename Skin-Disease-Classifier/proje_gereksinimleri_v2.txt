@@ -16,12 +16,11 @@ Fonksiyonel Gereksinimler
 - Kullanıcı geçmişi ekranı: yüklemeler, sonuçlar, mesaj ve görüşme kayıtları.
 
 Fonksiyonel Olmayan Gereksinimler
-- Kullanıcıların beklemeden sonuç görebileceği, akıcı performansa sahip web ve API katmanı.
-- Beklenmedik yük artışlarını karşılayabilecek şekilde esneyen altyapı.
-- Sağlık verilerinin gizliliğini koruyan, şifrelenmiş ve rol bazlı erişimle yönetilen güvenlik politikaları.
-- Masaüstü, tablet ve mobilde tutarlı çalışan, erişilebilir arayüzler.
-- Yüksek erişilebilirlik, düzenli yedekleme ve kriz anında hızlı toparlanma planları.
-- Kaynak kodunun sürüm kontrollü yönetimi, otomatik test ve dağıtım süreçleriyle desteklenen geliştirme döngüsü.
+- Kullanıcı deneyimi, akıcı bir performans sunmalı; ana ekranlar çoğu kullanıcı için en fazla 2 saniyede yüklenmeli ve AI sonuç ekranının toplam yanıt süresi (yükleme + inference) çoğu kullanıcı için 8 saniyeyi geçmemelidir.
+- Altyapı, beklenmedik yük artışlarında dahi en az 500 eşzamanlı aktif kullanıcıyı destekleyerek giriş, yükleme ve mesaj gönderme gibi temel akışlarda başarı oranını %99 ve üzeri seviyesinde tutmalıdır.
+- Sağlık verilerinin gizliliği, HTTPS ve at-rest şifreleme ile korunmalı; rol bazlı erişim uygulanmalı ve bileşenler kritik güvenlik açığı (CVSS ≥ 9) içermeyecek şekilde yılda en az bir güvenlik taramasından geçmelidir.
+- Sistem sürekliliği için günlük otomatik yedekleme sağlanmalı; kesinti halinde veri kaybı süresi ≤ 24 saat ve sistem toparlanma süresi ≤ 4 saat olacak şekilde planlanmalıdır.
+- Geliştirme süreci sürüm kontrolü ve otomatik testlerle desteklenmeli; ana branch’e alınan değişikliklerde otomatik test başarı oranı ≥ %95 ve production dağıtımından önce en az bir otomatik test aşaması bulunmalıdır.
 
 Olası ER Diyagramı (özet)
 - Users (user_id, role[patient/doctor/admin], name, email, hashed_password, created_at)
@@ -51,6 +50,7 @@ Başarı Ölçütleri
 - Günlük aktif kullanıcı ve doktor sayılarının hedeflenen artış oranına ulaşması.
 
 Front-End Teknolojileri
+- Temel web standartları: HTML5, CSS3 ve JavaScript (ESNext). Bu temel, TypeScript ile güçlendirilir.
 - React + Next.js (App Router) + TypeScript ile iki temel layout: kullanıcı portalı ve doktor portalı.
 - NextAuth.js (Auth.js) ile kimlik doğrulama; JWT veya database session stratejisi, rol bazlı middleware.
 - Tailwind CSS veya Chakra UI ile sade bileşenler; Headless UI tab’leriyle modalite seçim akışı.
