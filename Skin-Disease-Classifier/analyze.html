@@ -263,7 +263,7 @@
             <label for="image-input">Görüntü Yükleyin:</label>
             <div class="file-upload-wrapper">
                 <button class="file-upload-button" onclick="document.getElementById('image-input').click(); return false;">
-                    📁 Dosya Seç
+                    Dosya Seç
                 </button>
                 <input type="file" id="image-input" accept="image/*">
             </div>
@@ -273,7 +273,7 @@
         </div>
 
         <button class="analyze-button" id="analyze-button" onclick="analyzeImage()" disabled>
-            🔍 Analiz Et
+            Analiz Et
         </button>
 
         <div class="loading" id="loading">Analiz yapılıyor, lütfen bekleyin...</div>
@@ -315,16 +315,15 @@
                 }
             },
             skin: {
-                useBackend: false,
-                path: './final_model_kaggle_version1/model.json',
+                // Backend API kullan (localhost)
+                useBackend: true,
+                apiUrl: 'http://localhost:5003/predict',
                 classes: {
-                    0: 'Actinic Keratoses',
-                    1: 'Basal Cell Carcinoma',
-                    2: 'Benign Keratosis',
-                    3: 'Dermatofibroma',
-                    4: 'Melanoma',
-                    5: 'Melanocytic Nevi',
-                    6: 'Vascular Lesions'
+                    0: 'akiec',   // Actinic Keratoses
+                    1: 'bcc',     // Basal Cell Carcinoma
+                    2: 'bkl',     // Benign Keratosis
+                    3: 'mel',     // Melanoma
+                    4: 'nv'       // Melanocytic Nevi
                 }
             },
             lung: {
@@ -412,7 +411,16 @@
                             errorMessage += 'Bilinmeyen bağlantı hatası. ';
                         }
                         
-                        errorMessage += 'API\'yi başlatmak için: python bone_disease_api.py';
+                        // API komutunu hastalık türüne göre ayarla
+                        const apiCommands = {
+                            'bone': 'python bone_disease_api.py',
+                            'skin': 'python skin_disease_api.py',
+                            'lung': 'python lung_disease_api.py',
+                            'eye': 'python eye_disease_api.py'
+                        };
+                        const diseaseType = document.getElementById('disease-type').value;
+                        const apiCommand = apiCommands[diseaseType] || 'python [disease]_api.py';
+                        errorMessage += `API'yi başlatmak için: ${apiCommand}`;
                         
                         // Hata mesajını garantili göster
                         updateModelStatus('error', errorMessage);

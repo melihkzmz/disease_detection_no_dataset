@@ -155,6 +155,7 @@ print("="*70)
 
 # Load model
 model = None
+model_type = None  # 'keras', 'savedmodel', 'h5'
 
 try:
     print(f"\n[YUKLENIYOR] Model: {MODEL_PATH}")
@@ -181,6 +182,7 @@ try:
                 # Direkt callable olarak kullan
                 model = saved_model
                 print("[BASARILI] Model yuklendi (SavedModel format - callable)")
+            model_type = 'savedmodel'
             # Test prediction için input shape'i bilinmiyor, atlanacak
             input_shape = (384, 384)  # Varsayılan
         elif MODEL_PATH.endswith('.h5'):
@@ -190,6 +192,7 @@ try:
                 custom_objects=custom_objects,
                 compile=False
             )
+            model_type = 'h5'
             print("[BASARILI] Model yuklendi (H5 format)")
             # Test prediction
             try:
@@ -208,6 +211,7 @@ try:
                 compile=False,
                 safe_mode=False
             )
+            model_type = 'keras'
             print("[BASARILI] Model yuklendi (Keras format)")
             # Test prediction
             try:
@@ -219,6 +223,7 @@ try:
                 print(f"[UYARI] Test prediction atlandi: {str(test_err)[:100]}")
     
     print(f"[BASARILI] Model yuklendi!")
+    print(f"[BILGI] Model tipi: {model_type}")
     print(f"[BILGI] Sinif sayisi: {len(CLASS_NAMES)}")
     print(f"[BILGI] Siniflar: {', '.join(CLASS_NAMES)}")
     
@@ -329,109 +334,176 @@ def get_gradcam_model(base_model):
     # DenseNet121'in son convolutional block'u
     layer_names = [layer.name for layer in base_model.layers]
     
-    # Son convolutional layer'ı bul
+    # Son convolutional layer'ı bul - DenseNet121 için daha spesifik
     last_conv_layer_name = None
+    
+    # DenseNet121'de son convolutional layer genelde 'relu' ile biten son conv block
+    # Önce 'conv5_block16_concat' veya benzer bir layer'ı bul
     for name in reversed(layer_names):
-        if 'conv' in name.lower() and ('concat' in name.lower() or 'relu' in name.lower()):
+        if 'conv5_block16' in name and ('concat' in name or 'relu' in name):
             last_conv_layer_name = name
             break
     
+    # İkinci seçenek: 'bn' (batch norm) öncesi son conv
     if last_conv_layer_name is None:
-        # Fallback: Son convolutional layer (4D output)
+        for name in reversed(layer_names):
+            if 'conv' in name.lower() and 'relu' in name.lower():
+                # DenseNet block sonları genelde relu ile biter
+                try:
+                    layer = base_model.get_layer(name)
+                    if len(layer.output_shape) == 4:  # (B, H, W, C)
+                        last_conv_layer_name = name
+                        break
+                except:
+                    continue
+    
+    # Fallback: Son 4D output veren layer
+    if last_conv_layer_name is None:
         for i in range(len(base_model.layers) - 1, -1, -1):
             layer = base_model.layers[i]
-            if len(layer.output_shape) == 4:  # (B, H, W, C)
-                last_conv_layer_name = layer.name
-                break
+            try:
+                if len(layer.output_shape) == 4:  # (B, H, W, C)
+                    last_conv_layer_name = layer.name
+                    break
+            except:
+                continue
     
     if last_conv_layer_name is None:
         # Default DenseNet121
         last_conv_layer_name = 'conv5_block16_concat'
-    
-    print(f"[GRAD-CAM] Last convolutional layer: {last_conv_layer_name}")
+        print(f"[GRAD-CAM] UYARI: Default layer kullanılıyor: {last_conv_layer_name}")
+    else:
+        print(f"[GRAD-CAM] Son convolutional layer bulundu: {last_conv_layer_name}")
     
     # Grad-CAM model
-    gradcam_model = tf.keras.Model(
-        inputs=base_model.input,
-        outputs=[base_model.get_layer(last_conv_layer_name).output, base_model.output]
-    )
+    try:
+        gradcam_model = tf.keras.Model(
+            inputs=base_model.input,
+            outputs=[base_model.get_layer(last_conv_layer_name).output, base_model.output]
+        )
+    except Exception as e:
+        print(f"[GRAD-CAM] Model oluşturma hatası: {e}")
+        raise
     
     return gradcam_model, last_conv_layer_name
 
-def compute_gradcam(model, img_array, pred_index=None):
+def compute_gradcam(model, img_array, pred_index=None, model_type=None):
     """Grad-CAM hesapla"""
     try:
+        # Model tipi kontrolü
+        if model_type == 'savedmodel':
+            raise NotImplementedError("SavedModel formatı için Grad-CAM henüz desteklenmiyor. Keras model formatı (.keras veya .h5) kullanın.")
+        
         # Keras model kontrolü
-        if hasattr(model, 'layers'):
-            # Base model'i bul
+        if isinstance(model, keras.Model) or (hasattr(model, 'layers') and hasattr(model, 'predict')):
+            # Full Keras model - base model'i bul
             base_model = None
-            for layer in model.layers:
-                if hasattr(layer, 'layers') and len(layer.layers) > 10:  # Base model
-                    base_model = layer
-                    break
             
-            if base_model is None:
-                base_model = model.layers[0]
+            # Model'in ilk layer'ını kontrol et (genelde base model wrapper)
+            # DenseNet121 için: model.layers[0] genelde base model wrapper'dır
+            if len(model.layers) > 0:
+                first_layer = model.layers[0]
+                # Eğer ilk layer'da 'densenet' veya çok sayıda layer varsa, bu base model olabilir
+                if hasattr(first_layer, 'layers') and len(first_layer.layers) > 10:
+                    base_model = first_layer
+                    print(f"[GRAD-CAM] Base model ilk layer'da bulundu: {first_layer.name} ({len(first_layer.layers)} layers)")
+                else:
+                    # Direkt base model olabilir - tüm model'i kullan
+                    base_model = model
+                    print(f"[GRAD-CAM] Model direkt base model olarak kullanılıyor ({len(model.layers)} layers)")
+            else:
+                base_model = model
             
-            # Grad-CAM model
+            # Grad-CAM model oluştur
+            print(f"[GRAD-CAM] Grad-CAM model oluşturuluyor...")
             gradcam_model, last_conv_layer_name = get_gradcam_model(base_model)
             
             img_tensor = tf.constant(img_array, dtype=tf.float32)
             
             with tf.GradientTape() as tape:
                 tape.watch(img_tensor)
-                conv_outputs, predictions = gradcam_model(img_tensor)
+                conv_outputs, predictions = gradcam_model(img_tensor, training=False)
                 
                 if pred_index is None:
                     pred_index = tf.argmax(predictions[0])
+                else:
+                    pred_index = tf.constant(pred_index, dtype=tf.int64)
                 
                 class_channel = predictions[:, pred_index]
             
+            # Gradient hesapla
             grads = tape.gradient(class_channel, conv_outputs)
+            
+            # Gradient'in None olup olmadığını kontrol et
+            if grads is None:
+                raise ValueError("Gradient hesaplanamadı - model trainable değil olabilir")
+            
+            # Global average pooling of gradients
             pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
             
+            # Weighted combination of activation maps
             conv_outputs = conv_outputs[0]
             heatmap = conv_outputs @ pooled_grads[..., tf.newaxis]
             heatmap = tf.squeeze(heatmap)
-            heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+            
+            # ReLU ve normalize
+            heatmap = tf.maximum(heatmap, 0)
+            heatmap_max = tf.reduce_max(heatmap)
+            
+            # Heatmap'in düzgün hesaplandığını kontrol et
+            if heatmap_max < 1e-7:
+                print("[GRAD-CAM] UYARI: Heatmap tüm değerleri sıfır veya çok küçük")
+                raise ValueError("Heatmap hesaplanamadı - tüm değerler sıfır")
+            
+            heatmap = heatmap / heatmap_max
             heatmap = heatmap.numpy()
             
-            # Resize
+            # NaN veya Inf kontrolü
+            if np.any(np.isnan(heatmap)) or np.any(np.isinf(heatmap)):
+                print("[GRAD-CAM] UYARI: Heatmap NaN veya Inf içeriyor")
+                raise ValueError("Heatmap geçersiz (NaN/Inf)")
+            
+            # Resize to original image size
+            original_height = img_array.shape[1]
+            original_width = img_array.shape[2]
+            
             if CLAHE_AVAILABLE:
-                heatmap = cv2.resize(heatmap, (img_array.shape[2], img_array.shape[1]))
+                heatmap = cv2.resize(heatmap, (original_width, original_height), interpolation=cv2.INTER_CUBIC)
             else:
                 from PIL import Image as PILImage
-                heatmap_pil = PILImage.fromarray((heatmap * 255).astype(np.uint8))
-                heatmap_pil = heatmap_pil.resize((img_array.shape[2], img_array.shape[1]))
-                heatmap = np.array(heatmap_pil) / 255.0
+                heatmap_pil = PILImage.fromarray((heatmap * 255).astype(np.uint8), mode='L')
+                heatmap_pil = heatmap_pil.resize((original_width, original_height), PILImage.Resampling.LANCZOS)
+                heatmap = np.array(heatmap_pil, dtype=np.float32) / 255.0
             
             return heatmap, img_array[0]
         else:
-            # SavedModel - basit saliency
-            print("[GRAD-CAM] SavedModel için basit saliency map")
-            heatmap = np.ones((img_array.shape[1], img_array.shape[2])) * 0.5
-            return heatmap, img_array[0]
+            # Diğer formatlar - desteklenmiyor
+            raise TypeError(f"Model tipi desteklenmiyor. Model: {type(model)}, hasattr(layers): {hasattr(model, 'layers')}, hasattr(predict): {hasattr(model, 'predict')}")
     except Exception as e:
         print(f"[GRAD-CAM] Hesaplama hatası: {e}")
         import traceback
         traceback.print_exc()
-        # Fallback
-        heatmap = np.ones((img_array.shape[1], img_array.shape[2])) * 0.5
-        return heatmap, img_array[0]
+        # Hata durumunda None döndür - çağıran kod bunu handle etsin
+        raise
 
 def overlay_heatmap(img, heatmap, alpha=0.4):
     """Heatmap'i görüntü üzerine yerleştir"""
-    # Heatmap'i RGB'ye çevir
+    # Heatmap normalize kontrolü
+    if heatmap.max() - heatmap.min() < 1e-6:
+        print(f"[OVERLAY] UYARI: Heatmap düz (min: {heatmap.min()}, max: {heatmap.max()})")
+    
+    # Heatmap'i 0-255 aralığına normalize et
+    heatmap_normalized = (heatmap - heatmap.min()) / (heatmap.max() - heatmap.min() + 1e-8)
+    heatmap_uint8 = np.uint8(255 * heatmap_normalized)
+    
+    # Colormap uygula
     if CLAHE_AVAILABLE:
-        heatmap_uint8 = np.uint8(255 * heatmap)
         heatmap_rgb = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
         heatmap_rgb = cv2.cvtColor(heatmap_rgb, cv2.COLOR_BGR2RGB)
-        heatmap_normalized = heatmap_rgb.astype(np.float32) / 255.0
+        heatmap_rgb_normalized = heatmap_rgb.astype(np.float32) / 255.0
     else:
-        # Basit colormap
-        heatmap_normalized = (heatmap * 255).astype(np.uint8)
-        heatmap_normalized = np.stack([heatmap_normalized] * 3, axis=-1)
-        heatmap_normalized = heatmap_normalized.astype(np.float32) / 255.0
+        # Basit grayscale to RGB
+        heatmap_rgb_normalized = np.stack([heatmap_normalized] * 3, axis=-1)
     
     # Image normalize
     if img.max() > 1.0:
@@ -439,18 +511,22 @@ def overlay_heatmap(img, heatmap, alpha=0.4):
     else:
         img_normalized = img.astype(np.float32)
     
-    # Resize heatmap to match image
-    if heatmap_normalized.shape[:2] != img_normalized.shape[:2]:
+    # Resize heatmap to match image dimensions
+    if heatmap_rgb_normalized.shape[:2] != img_normalized.shape[:2]:
         if CLAHE_AVAILABLE:
-            heatmap_normalized = cv2.resize(heatmap_normalized, (img_normalized.shape[1], img_normalized.shape[0]))
+            heatmap_rgb_normalized = cv2.resize(
+                heatmap_rgb_normalized, 
+                (img_normalized.shape[1], img_normalized.shape[0]),
+                interpolation=cv2.INTER_CUBIC
+            )
         else:
             from PIL import Image as PILImage
-            heatmap_pil = PILImage.fromarray((heatmap_normalized * 255).astype(np.uint8))
-            heatmap_pil = heatmap_pil.resize((img_normalized.shape[1], img_normalized.shape[0]))
-            heatmap_normalized = np.array(heatmap_pil).astype(np.float32) / 255.0
+            heatmap_pil = PILImage.fromarray((heatmap_rgb_normalized * 255).astype(np.uint8))
+            heatmap_pil = heatmap_pil.resize((img_normalized.shape[1], img_normalized.shape[0]), PILImage.Resampling.LANCZOS)
+            heatmap_rgb_normalized = np.array(heatmap_pil).astype(np.float32) / 255.0
     
-    # Overlay
-    superimposed = img_normalized * (1 - alpha) + heatmap_normalized * alpha
+    # Overlay - alpha blending
+    superimposed = img_normalized * (1 - alpha) + heatmap_rgb_normalized * alpha
     superimposed = np.clip(superimposed, 0, 1)
     
     return superimposed
@@ -586,7 +662,16 @@ def predict():
                 original_array = np.array(original_image)
                 
                 # Grad-CAM hesapla
-                heatmap, _ = compute_gradcam(model, processed_image, pred_index=top_idx)
+                print(f"[GRAD-CAM] Grad-CAM hesaplanıyor... Model tipi: {model_type}")
+                heatmap, _ = compute_gradcam(model, processed_image, pred_index=int(top_idx), model_type=model_type)
+                
+                # Heatmap kontrolü - eğer düz ise (tüm değerler aynı), uyarı ver
+                if heatmap is not None:
+                    heatmap_unique = np.unique(heatmap)
+                    if len(heatmap_unique) <= 2:  # Çok az farklı değer varsa
+                        print(f"[GRAD-CAM] UYARI: Heatmap düz görünüyor (unique değer sayısı: {len(heatmap_unique)})")
+                    else:
+                        print(f"[GRAD-CAM] Heatmap başarıyla hesaplandı (min: {heatmap.min():.4f}, max: {heatmap.max():.4f}, unique: {len(heatmap_unique)})")
                 
                 # Overlay heatmap
                 gradcam_img = overlay_heatmap(original_array, heatmap)
@@ -601,11 +686,15 @@ def predict():
                 gradcam_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
                 
                 result["gradcam"] = f"data:image/png;base64,{gradcam_base64}"
+            except NotImplementedError as e:
+                # SavedModel formatı için özel mesaj
+                print(f"[GRAD-CAM] Hata: {e}")
+                result["gradcam_error"] = "Grad-CAM şu an sadece Keras model formatı (.keras veya .h5) için destekleniyor. SavedModel formatı için henüz desteklenmiyor."
             except Exception as e:
                 print(f"[GRAD-CAM] Hata: {e}")
                 import traceback
                 traceback.print_exc()
-                result["gradcam_error"] = str(e)
+                result["gradcam_error"] = f"Grad-CAM hesaplanamadı: {str(e)}"
         
         return jsonify(result)
         

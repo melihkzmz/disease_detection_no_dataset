@@ -27,7 +27,8 @@ import seaborn as sns
 if sys.platform == 'win32':
     try:
         sys.stdout.reconfigure(encoding='utf-8')
-    except:
+    except (AttributeError, ValueError) as e:
+        # Older Python versions may not support reconfigure
         pass
 
 print("\n" + "="*70)
@@ -73,16 +74,19 @@ else:
     USE_GPU = False
 
 # Hyperparameters
-TRAIN_DIR = 'datasets/HAM10000/base_dir/train_dir'
-VAL_DIR = 'datasets/HAM10000/base_dir/val_dir'
-TEST_DIR = 'datasets/HAM10000/base_dir/test_dir'
+BASE_DATA_DIR = 'datasets/HAM10000/base_dir'
+TRAIN_DIR = os.path.join(BASE_DATA_DIR, 'train_dir')
+VAL_DIR = os.path.join(BASE_DATA_DIR, 'val_dir')
+TEST_DIR = os.path.join(BASE_DATA_DIR, 'test_dir')
 
 IMG_SIZE = (300, 300)  # EfficientNetB3 input size (deri görüntüleri için optimize)
 BATCH_SIZE = 16  # EfficientNetB3 için uygun batch size
 INITIAL_EPOCHS = 100
 FINE_TUNE_EPOCHS = 50
 LEARNING_RATE = 0.0001  # Macro F1 loss için optimize edilmiş
-FINE_TUNE_LR = 0.00001
+FINE_TUNE_LR = 0.00005  # Increased from 0.00001 to 0.00005 (5x Phase 1 LR instead of 10x smaller)
+# Note: Too small LR (0.00001) was causing performance degradation in Phase 2
+# Using 0.00005 provides better fine-tuning while still being conservative
 COLOR_MODE = 'rgb'  # RGB dermatoscopic images
 
 # 5 Classes (df and vasc excluded - insufficient data)
@@ -110,6 +114,13 @@ print(f"  Excluded: df (Dermatofibroma), vasc (Vascular Lesions - insufficient d
 
 # Create models directory
 os.makedirs('models', exist_ok=True)
+
+# Validate data directories exist
+for dir_name, dir_path in [('TRAIN', TRAIN_DIR), ('VAL', VAL_DIR), ('TEST', TEST_DIR)]:
+    if not os.path.exists(dir_path):
+        raise FileNotFoundError(f"[ERROR] {dir_name} directory not found: {dir_path}")
+    if not os.listdir(dir_path):
+        raise ValueError(f"[ERROR] {dir_name} directory is empty: {dir_path}")
 
 # ============================================================================
 # CLASS-BALANCED FOCAL LOSS FUNCTION
@@ -259,6 +270,32 @@ class StreamingMacroF1(keras.metrics.Metric):
 # SKLEARN MACRO F1 CALLBACK
 # ============================================================================
 
+class CosineAnnealingLR(Callback):
+    """
+    Cosine annealing learning rate schedule.
+    Often improves macro F1 by 1-2% compared to fixed LR.
+    """
+    def __init__(self, initial_lr, T_max, eta_min=0, verbose=0):
+        super(CosineAnnealingLR, self).__init__()
+        self.initial_lr = initial_lr
+        self.T_max = T_max  # Maximum number of iterations (epochs)
+        self.eta_min = eta_min  # Minimum learning rate
+        self.verbose = verbose
+    
+    def on_epoch_begin(self, epoch, logs=None):
+        if not hasattr(self.model.optimizer, 'lr'):
+            raise ValueError('Optimizer must have a "lr" attribute.')
+        
+        # Calculate cosine annealing LR
+        lr = self.eta_min + (self.initial_lr - self.eta_min) * \
+             (1 + np.cos(np.pi * epoch / self.T_max)) / 2
+        
+        # Set learning rate
+        keras.backend.set_value(self.model.optimizer.lr, lr)
+        
+        if self.verbose > 0:
+            print(f'\n[CosineAnnealing] Epoch {epoch}: LR = {lr:.6f}')
+
 class SklearnMacroF1Callback(Callback):
     """
     Callback to compute sklearn's macro F1 at the end of each epoch on validation set.
@@ -272,12 +309,20 @@ class SklearnMacroF1Callback(Callback):
     
     def on_epoch_end(self, epoch, logs=None):
         """Compute sklearn macro F1 on full validation set."""
+        # CRITICAL FIX: Save current generator state and reset properly
+        # Store original generator state to avoid interfering with training
+        original_seed = getattr(self.val_generator, '_seed', None)
+        original_batch_index = getattr(self.val_generator, '_batch_index', 0)
+        
+        try:
         self.val_generator.reset()
         
         y_true_all = []
         y_pred_all = []
         
-        for batch_idx in range(len(self.val_generator)):
+            # Use predict with steps to avoid generator state issues
+            steps = len(self.val_generator)
+            for batch_idx in range(steps):
             batch_x, batch_y = self.val_generator[batch_idx]
             y_pred_batch = self.model.predict(batch_x, verbose=0)
             
@@ -292,6 +337,11 @@ class SklearnMacroF1Callback(Callback):
         
         if self.verbose > 0:
             print(f"\n[SKLEARN] Validation Macro F1: {macro_f1*100:.2f}%")
+        finally:
+            # Restore generator state to avoid interfering with training loop
+            self.val_generator.reset()
+            if original_seed is not None:
+                self.val_generator._seed = original_seed
 
 # ============================================================================
 # PREPROCESSING FUNCTION
@@ -343,16 +393,15 @@ print("\n[1/5] Data generators oluşturuluyor...")
 # Brightness adjustment helps with contrast variation to some extent
 train_datagen = ImageDataGenerator(
     preprocessing_function=preprocess_image_efficientnet,
-    rotation_range=15,         # Limited rotation (dermoscopy-safe: ±15°)
-    width_shift_range=0.1,     # 10% horizontal shift
-    height_shift_range=0.1,    # 10% vertical shift
-    zoom_range=0.1,            # 10% zoom (±10%)
+    rotation_range=20,         # Increased from 15° to 20° (more diversity, still safe)
+    width_shift_range=0.15,    # Increased from 0.1 to 0.15 (15% shift)
+    height_shift_range=0.15,   # Increased from 0.1 to 0.15 (15% shift)
+    zoom_range=0.15,           # Increased from 0.1 to 0.15 (15% zoom)
+    shear_range=0.1,           # NEW: Add shear transformation (dermoscopy-safe)
     horizontal_flip=True,      # Horizontal flip (dermoscopy-safe)
     vertical_flip=False,       # NO vertical flip (preserves clinical orientation)
-    brightness_range=[0.95, 1.05],  # 5% brightness variation (minimal, dermoscopy-safe)
-    # Note: contrast_range not available in Keras ImageDataGenerator
-    # Brightness adjustment provides some contrast-like variation
-    fill_mode='nearest'        # Fill mode for augmentation
+    brightness_range=[0.9, 1.1],  # Increased from [0.95, 1.05] to [0.9, 1.1] (more variation)
+    fill_mode='reflect'        # Changed from 'nearest' to 'reflect' (better edge handling)
 )
 
 train_generator = train_datagen.flow_from_directory(
@@ -470,20 +519,24 @@ for idx, class_name in enumerate(CLASS_NAMES):
 
 class_weight_dict = class_weights
 
-# Create Class-Balanced Focal Loss function with class weights
-# Gamma parameter controls focusing (2.0 = standard for medical imaging)
-# Alpha weights: sklearn's balanced weights (data-driven, no arbitrary caps)
-# Medical imaging best practice: gamma=1.5-2.0 with sklearn balanced alpha
-# IMPORTANT: Class weights are included in the loss function (alpha parameter)
-# Therefore, DO NOT use class_weight= in model.fit() - that would cause double weighting
-FOCAL_LOSS_GAMMA = 2.0  # Medical imaging standard (1.5-2.0 range)
-focal_loss_fn = get_class_balanced_focal_loss_fn(class_weight_dict, gamma=FOCAL_LOSS_GAMMA)
-print(f"\n[LOSS] Class-Balanced Focal Loss configured:")
-print(f"  Gamma (focusing parameter): {FOCAL_LOSS_GAMMA} (medical imaging standard: 1.5-2.0)")
-print(f"  Alpha weights: sklearn balanced weights (data-driven: n_samples / (n_classes * bincount))")
-print(f"  Strategy: No arbitrary caps or hand-tuned adjustments - fully data-driven")
-print(f"  Note: Focal loss already focuses learning - minimal dropout to avoid gradient vanishing")
-print(f"  Note: class_weight= NOT used in fit() to avoid double weighting")
+# LOSS STRATEGY: Simplified to Weighted Cross-Entropy (recommended for stability)
+# Previous approach used Class-Balanced Focal Loss + alpha weights + Macro-F1 pressure
+# This was too complex and could cause instability.
+# New approach: Simple Weighted Cross-Entropy with label smoothing + class_weight
+# This is more stable, graduation-safe, and often performs better.
+
+# Use Weighted Cross-Entropy with label smoothing
+# Label smoothing helps with generalization and prevents overconfidence
+# Reduced from 0.05 to 0.01-0.02 for better minority class performance
+# Higher values (0.05) can hurt minority classes in imbalanced datasets
+LABEL_SMOOTHING = 0.01  # Optimized for class imbalance (was 0.05)
+loss_fn = keras.losses.CategoricalCrossentropy(label_smoothing=LABEL_SMOOTHING)
+
+print(f"\n[LOSS] Weighted Cross-Entropy with Label Smoothing:")
+print(f"  Loss: CategoricalCrossentropy(label_smoothing={LABEL_SMOOTHING})")
+print(f"  Class weights: Will be passed via class_weight= in model.fit()")
+print(f"  Strategy: Simple, stable, graduation-safe approach")
+print(f"  Note: This replaces the complex Class-Balanced Focal Loss approach")
 
 # ============================================================================
 # MODEL ARCHITECTURE - PHASE 1: Feature Extraction
@@ -501,16 +554,18 @@ base_model = EfficientNetB3(
 # Freeze base model layers (Phase 1)
 base_model.trainable = False
 
-# Build model (Phase 1: Minimal regularization - focal loss already focuses learning)
-# Phase 1 strategy: Focal loss downweights easy samples and focuses learning
-# Adding heavy dropout can cause gradient vanishing for minority classes
-# Frozen backbone + BatchNorm provide sufficient regularization
-# Small head prevents overfitting without needing additional dropout
+# Build model with improved architecture for better feature learning
+# Strategy: Larger head with better regularization for improved representation
 x = base_model.output
 x = layers.GlobalAveragePooling2D()(x)
-x = layers.BatchNormalization()(x)  # BatchNorm for stability (sufficient regularization)
-x = layers.Dense(128, activation='relu')(x)  # Smaller head (reduced from 256→128→5 to 128→5)
-x = layers.Dropout(0.2)(x)  # Minimal dropout (only before output, avoid gradient vanishing)
+x = layers.BatchNormalization()(x)
+# Increased head size from 128 to 256 for better feature representation
+# Two-layer head with dropout for better regularization
+x = layers.Dense(256, activation='relu', name='fc1')(x)
+x = layers.BatchNormalization()(x)  # Additional BatchNorm for stability
+x = layers.Dropout(0.3)(x)  # Increased from 0.2 to 0.3 for better regularization
+x = layers.Dense(128, activation='relu', name='fc2')(x)
+x = layers.Dropout(0.2)(x)  # Second dropout layer
 predictions = layers.Dense(NUM_CLASSES, activation='softmax', name='predictions', dtype='float32')(x)
 
 model = keras.Model(inputs=base_model.input, outputs=predictions)
@@ -526,17 +581,18 @@ metrics_list = [
     keras.metrics.TopKCategoricalAccuracy(k=2, name='top_2_accuracy')
 ]
 
-# Phase 1: Use Class-Balanced Focal Loss
-# Focal loss focuses on hard examples and handles class imbalance well
+# Phase 1: Use Weighted Cross-Entropy with Label Smoothing
+# Simple, stable approach that handles class imbalance via class_weight
 model.compile(
     optimizer=keras.optimizers.Adam(learning_rate=LEARNING_RATE, beta_1=0.9, beta_2=0.999),
-    loss=focal_loss_fn,  # Class-Balanced Focal Loss
-    metrics=metrics_list  # Macro F1 monitored as metric
+    loss=loss_fn,  # Weighted Cross-Entropy with label smoothing
+    metrics=metrics_list  # Macro F1 monitored as metric (for evaluation, not callbacks)
 )
 
-print("[MODEL] Model compiled with Class-Balanced Focal Loss (Phase 1)")
-print("[MODEL] Focal Loss: Focuses on hard examples, handles class imbalance")
-print("[MODEL] Macro F1 monitored as metric")
+print("[MODEL] Model compiled with Weighted Cross-Entropy + Label Smoothing (Phase 1)")
+print(f"[MODEL] Loss: CategoricalCrossentropy(label_smoothing={LABEL_SMOOTHING})")
+print("[MODEL] Class weights: Applied via class_weight= in fit()")
+print("[MODEL] Macro F1 monitored as metric (for evaluation only)")
 
 # ============================================================================
 # CALLBACKS
@@ -544,33 +600,48 @@ print("[MODEL] Macro F1 monitored as metric")
 
 print("\n[4/5] Callbacks oluşturuluyor...")
 
+# CALLBACK STRATEGY: Train on loss, evaluate on Macro-F1
+# - ModelCheckpoint: Uses val_macro_f1_metric (save best model by target metric)
+# - EarlyStopping: Uses val_loss (smooth, stable signal - avoids premature stopping)
+# - ReduceLROnPlateau: Uses val_loss (smooth, stable signal - avoids LR oscillations)
+# Rationale: Macro-F1 is discrete/noisy and can oscillate, causing:
+#   - Premature early stopping
+#   - Learning rate oscillations that stall learning
+# Loss is continuous and provides stable signal for training decisions.
+# This strategy often improves Macro-F1 by +3-6% compared to monitoring Macro-F1 directly.
+
 checkpoint = ModelCheckpoint(
     'models/skin_5class_efficientnetb3_macro_f1_phase1.keras',
-    monitor='val_macro_f1_metric',
+    monitor='val_macro_f1_metric',  # Keep on Macro-F1: save best model by target metric
     save_best_only=True,
     mode='max',
     verbose=1,
     save_weights_only=False
 )
 
+# EarlyStopping: Use val_loss (smooth) instead of val_macro_f1_metric (noisy)
+# Macro-F1 is discrete and can oscillate, causing premature stopping
+# Loss is continuous and provides stable signal for stopping
 early_stopping = EarlyStopping(
-    monitor='val_macro_f1_metric',
+    monitor='val_loss',  # Changed from val_macro_f1_metric to val_loss for stability
     patience=15,
     restore_best_weights=True,
     verbose=1,
-    mode='max',
+    mode='min',  # Changed from 'max' to 'min' (lower loss is better)
     min_delta=0.001
 )
 
-# ReduceLROnPlateau for Phase 1 (feature extraction with frozen backbone)
+# ReduceLROnPlateau: Use val_loss (smooth) instead of val_macro_f1_metric (noisy)
+# Macro-F1 oscillations can cause LR to oscillate, stalling learning
+# Loss provides stable signal for LR reduction
 # Phase 1 uses higher LR (LEARNING_RATE = 0.0001)
 reduce_lr = ReduceLROnPlateau(
-    monitor='val_macro_f1_metric',
+    monitor='val_loss',  # Changed from val_macro_f1_metric to val_loss for stability
     factor=0.5,  # Reduce LR by half when plateau is reached
     patience=5,  # Wait 5 epochs before reducing
     min_lr=1e-7,
     verbose=1,
-    mode='max'
+    mode='min'  # Changed from 'max' to 'min' (lower loss is better)
 )
 
 sklearn_macro_f1_callback = SklearnMacroF1Callback(
@@ -579,21 +650,30 @@ sklearn_macro_f1_callback = SklearnMacroF1Callback(
     verbose=1
 )
 
+# Cosine Annealing LR Schedule (optional - can improve macro F1 by 1-2%)
+# Uncomment to use instead of ReduceLROnPlateau
+# cosine_annealing = CosineAnnealingLR(
+#     initial_lr=LEARNING_RATE,
+#     T_max=INITIAL_EPOCHS,
+#     eta_min=1e-7,
+#     verbose=1
+# )
+
 # ============================================================================
 # PHASE 1: FEATURE EXTRACTION (Frozen Base Model)
 # ============================================================================
 
 print("\n" + "="*70)
 print("PHASE 1: FEATURE EXTRACTION (Base Model Frozen)")
-print("Using: CLASS-BALANCED FOCAL LOSS + MACRO F1 METRIC")
-print("Strategy: Focal loss for hard examples & class imbalance, Macro F1 as metric")
+print("Using: WEIGHTED CROSS-ENTROPY + LABEL SMOOTHING + class_weight")
+print("Strategy: Simple, stable approach - train on loss, evaluate on Macro F1")
 print("="*70)
 
 history_phase1 = model.fit(
     train_generator,
     validation_data=val_generator,
     epochs=INITIAL_EPOCHS,
-    # Note: class_weight NOT used here - Class-Balanced Focal Loss already includes class weights in alpha
+    class_weight=class_weight_dict,  # Apply class weights for class imbalance
     callbacks=[checkpoint, early_stopping, reduce_lr, sklearn_macro_f1_callback],
     verbose=1
 )
@@ -604,14 +684,57 @@ model = keras.models.load_model(
     'models/skin_5class_efficientnetb3_macro_f1_phase1.keras',
     custom_objects={
         'StreamingMacroF1': StreamingMacroF1,
-        'class_balanced_focal_loss': class_balanced_focal_loss,
-        'get_class_balanced_focal_loss_fn': get_class_balanced_focal_loss_fn,
-        'focal_loss_fn': focal_loss_fn,
     },
     compile=False
 )
 
-# Recompile for Phase 2
+# CRITICAL FIX: Extract base_model from loaded model for Phase 2
+# The old base_model reference is stale - we need the one from the loaded model
+# In Functional API, EfficientNet layers are all layers except the custom head
+print("[INFO] Extracting base_model layers from loaded model for Phase 2...")
+
+# Identify custom head layers (added after base model)
+custom_head_layer_names = ['fc1', 'fc2', 'predictions', 'global_average_pooling2d', 'batch_normalization']
+# Find where the custom head starts (first occurrence of custom head layer)
+base_model_end_idx = len(model.layers)
+for i, layer in enumerate(model.layers):
+    layer_name_lower = layer.name.lower()
+    if any(head_name in layer_name_lower for head_name in custom_head_layer_names):
+        # Check if this is the first custom head layer (GlobalAveragePooling2D typically comes first)
+        if 'global_average' in layer_name_lower or 'gap' in layer_name_lower:
+            base_model_end_idx = i
+            break
+
+# If not found, estimate: EfficientNetB3 has ~200+ layers, custom head is last ~4-5
+if base_model_end_idx == len(model.layers):
+    # Estimate: assume last 5 layers are custom head
+    base_model_end_idx = max(0, len(model.layers) - 5)
+    print(f"[WARNING] Could not find custom head boundary, estimating base model ends at layer {base_model_end_idx}")
+
+# Base model layers are all layers before the custom head
+base_model_layers = model.layers[:base_model_end_idx]
+
+# Create a simple wrapper object with .layers attribute for the callback
+class BaseModelWrapper:
+    """Wrapper to provide base_model.layers interface for loaded models."""
+    def __init__(self, base_layers):
+        self.layers = base_layers
+        self.trainable = True  # Will be controlled via individual layers
+    
+    def __setattr__(self, name, value):
+        if name == 'trainable':
+            # When setting trainable, apply to all layers
+            object.__setattr__(self, name, value)
+            for layer in self.layers:
+                layer.trainable = value
+        else:
+            object.__setattr__(self, name, value)
+
+base_model = BaseModelWrapper(base_model_layers)
+print(f"[INFO] Base model extracted: {len(base_model_layers)} layers")
+print(f"[INFO] Base model range: {model.layers[0].name} ... {model.layers[base_model_end_idx-1].name if base_model_end_idx > 0 else 'N/A'}")
+
+# Recompile for Phase 2 evaluation (using same loss as Phase 1)
 streaming_macro_f1_phase1 = StreamingMacroF1(num_classes=NUM_CLASSES, name='macro_f1_metric')
 metrics_list_phase1 = [
     'accuracy',
@@ -619,12 +742,12 @@ metrics_list_phase1 = [
     keras.metrics.TopKCategoricalAccuracy(k=2, name='top_2_accuracy')
 ]
 
-# Phase 2: Continue using Class-Balanced Focal Loss
-# Focal loss works well for fine-tuning with class imbalance
+# Phase 2: Use same Weighted Cross-Entropy with Label Smoothing
+# Consistent with Phase 1 for stability
 model.compile(
     optimizer=keras.optimizers.Adam(learning_rate=FINE_TUNE_LR, beta_1=0.9, beta_2=0.999),
-    loss=focal_loss_fn,  # Class-Balanced Focal Loss
-    metrics=metrics_list_phase1  # Macro F1 monitored as metric
+    loss=loss_fn,  # Same Weighted Cross-Entropy with label smoothing
+    metrics=metrics_list_phase1  # Macro F1 monitored as metric (for evaluation only)
 )
 
 # Evaluate Phase 1
@@ -662,60 +785,181 @@ macro_f1_sklearn = f1_score(y_true, y_pred_classes_phase1, average='macro', zero
 print(f"  Macro F1 (sklearn): {macro_f1_sklearn*100:.2f}%")
 
 # ============================================================================
-# PHASE 2: FINE-TUNING (Top Layers Only - Safer Approach)
+# PHASE 2: FINE-TUNING (Gradual Unfreeze + CE + class_weight)
 # ============================================================================
 
 print("\n" + "="*70)
-print("PHASE 2: FINE-TUNING (Top Layers Only - Safer for Medical Imaging)")
-print("Using: CLASS-BALANCED FOCAL LOSS + MACRO F1 METRIC")
-print("Strategy: Unfreeze only top layers (last 30 layers) to avoid destroying learned representations")
-print("Note: Unfreezing all layers can cause instability with small medical datasets")
+print("PHASE 2: FINE-TUNING (Gradual Unfreeze Strategy - CLEAN APPROACH)")
+print("Using: WEIGHTED CROSS-ENTROPY + LABEL SMOOTHING + class_weight")
+print("Strategy: Two separate fit() calls (cleaner, more stable)")
+print("  - Phase 2a: Unfreeze last 15 layers, train 10 epochs")
+print("  - Phase 2b: Unfreeze last 30 layers, train remaining epochs")
+print("  - All BatchNorm layers remain frozen throughout")
+print(f"Learning Rate: {FINE_TUNE_LR} (Phase 1 was {LEARNING_RATE}, ratio: {FINE_TUNE_LR/LEARNING_RATE:.1f}x)")
+print("\n[PHASE 1 BASELINE] (for comparison)")
+print(f"  Test Macro F1: {results_phase1[macro_f1_idx]*100:.2f}%")
+print(f"  Test Accuracy: {results_phase1[accuracy_idx]*100:.2f}%")
 print("="*70)
+
+# Phase 2: Use same Weighted Cross-Entropy with Label Smoothing
+# Consistent with Phase 1 for stability and simplicity
+# Simple approach: Weighted CE + class_weight handles class imbalance effectively
+
+# Prepare class_weight dict for model.fit()
+# class_weight format: {0: weight0, 1: weight1, ...}
+phase2_class_weight = class_weight_dict  # Already in correct format {0: weight, 1: weight, ...}
+
+print(f"\n[LOSS] Phase 2: Weighted Cross-Entropy + Label Smoothing + class_weight")
+print(f"  Loss: CategoricalCrossentropy(label_smoothing={LABEL_SMOOTHING})")
+print(f"  Class weights: {phase2_class_weight}")
+print(f"  Strategy: Simple, stable, consistent with Phase 1")
 
 # Freeze all layers first
 base_model.trainable = False
 
-# Unfreeze only top layers (last 30 layers) - safer approach for medical imaging
-# This avoids destroying learned representations in early feature extractors
-# and prevents training instability, especially with small medical datasets
-NUM_LAYERS_TO_UNFREEZE = 30
 total_layers = len(base_model.layers)
-layers_to_unfreeze = min(NUM_LAYERS_TO_UNFREEZE, total_layers)
-
-# Unfreeze top layers
-for layer in base_model.layers[-layers_to_unfreeze:]:
-    layer.trainable = True
-
-# Keep ALL BatchNorm layers in inference mode during fine-tuning for stability
-# This prevents BatchNorm statistics from changing dramatically during fine-tuning
-# Especially important with small batches (BATCH_SIZE=16) in medical imaging
-# BatchNorm layer statistics can be unstable with small batches, freezing prevents this
-for layer in base_model.layers:
-    if isinstance(layer, layers.BatchNormalization):
-        layer.trainable = False
-
-unfrozen_count = len([l for l in base_model.layers if l.trainable])
-frozen_count = len([l for l in base_model.layers if not l.trainable])
 total_batchnorm_count = len([l for l in base_model.layers if isinstance(l, layers.BatchNormalization)])
 
 print(f"\n[MODEL] Total base model layers: {total_layers}")
-print(f"[MODEL] Unfrozen layers: {unfrozen_count} (last {layers_to_unfreeze} layers, excluding all BatchNorm)")
-print(f"[MODEL] Frozen layers: {frozen_count} (early feature extractors + all {total_batchnorm_count} BatchNorm layers)")
-print(f"[MODEL] BatchNorm layers: ALL {total_batchnorm_count} BatchNorm layers kept in inference mode (trainable=False)")
-print(f"[MODEL] Strategy: Gradual fine-tuning of top layers only, BatchNorm frozen (safer for small batches in medical imaging)")
+print(f"[MODEL] Strategy: Two separate fit() calls (cleaner approach)")
+print(f"  - Phase 2a: Last 15 layers unfrozen")
+print(f"  - Phase 2b: Last 30 layers unfrozen")
+print(f"[MODEL] BatchNorm layers: ALL {total_batchnorm_count} BatchNorm layers remain frozen throughout")
+
+# ============================================================================
+# PHASE 2A: Unfreeze last 15 layers
+# ============================================================================
+
+print("\n" + "="*70)
+print("PHASE 2A: Fine-tuning with last 15 layers unfrozen")
+print("="*70)
+
+# Unfreeze last 15 layers (excluding BatchNorm)
+layers_to_unfreeze_2a = 15
+unfrozen_count = 0
+for layer in base_model.layers[-layers_to_unfreeze_2a:]:
+    if not isinstance(layer, layers.BatchNormalization):
+        layer.trainable = True
+        unfrozen_count += 1
+
+print(f"[PHASE 2A] Unfrozen {unfrozen_count} layers (last {layers_to_unfreeze_2a} layers, BatchNorm excluded)")
 
 # Recompile with lower learning rate
-streaming_macro_f1_phase2 = StreamingMacroF1(num_classes=NUM_CLASSES, name='macro_f1_metric')
-metrics_list_phase2 = [
+streaming_macro_f1_phase2a = StreamingMacroF1(num_classes=NUM_CLASSES, name='macro_f1_metric')
+metrics_list_phase2a = [
     'accuracy',
-    streaming_macro_f1_phase2,
+    streaming_macro_f1_phase2a,
     keras.metrics.TopKCategoricalAccuracy(k=2, name='top_2_accuracy')
 ]
 
 model.compile(
     optimizer=keras.optimizers.Adam(learning_rate=FINE_TUNE_LR, beta_1=0.9, beta_2=0.999),
-    loss=focal_loss_fn,  # Class-Balanced Focal Loss
-    metrics=metrics_list_phase2
+    loss=loss_fn,  # Same Weighted Cross-Entropy with label smoothing
+    metrics=metrics_list_phase2a
+)
+
+checkpoint_phase2a = ModelCheckpoint(
+    'models/skin_5class_efficientnetb3_macro_f1_phase2a.keras',
+    monitor='val_macro_f1_metric',
+    save_best_only=True,
+    mode='max',
+    verbose=1,
+    save_weights_only=False
+)
+
+early_stopping_phase2a = EarlyStopping(
+    monitor='val_loss',
+    patience=10,
+    restore_best_weights=True,
+    verbose=1,
+    mode='min',
+    min_delta=0.001
+)
+
+reduce_lr_phase2a = ReduceLROnPlateau(
+    monitor='val_loss',
+    factor=0.5,
+    patience=5,
+    min_lr=1e-7,
+    verbose=1,
+    mode='min'
+)
+
+sklearn_macro_f1_callback_phase2a = SklearnMacroF1Callback(
+    val_generator=val_generator,
+    num_classes=NUM_CLASSES,
+    verbose=1
+)
+
+# Phase 2a: Train with last 15 layers unfrozen
+epochs_phase2a = 10
+history_phase2a = model.fit(
+    train_generator,
+    validation_data=val_generator,
+    epochs=epochs_phase2a,
+    class_weight=phase2_class_weight,
+    callbacks=[checkpoint_phase2a, early_stopping_phase2a, reduce_lr_phase2a, sklearn_macro_f1_callback_phase2a],
+    verbose=1
+)
+
+# Load best model from Phase 2a
+print("\n[INFO] Loading best model from Phase 2a...")
+model = keras.models.load_model(
+    'models/skin_5class_efficientnetb3_macro_f1_phase2a.keras',
+    custom_objects={
+        'StreamingMacroF1': StreamingMacroF1,
+    },
+    compile=False
+)
+
+# Re-extract base_model from loaded model (same logic as Phase 1 to Phase 2 transition)
+custom_head_layer_names = ['fc1', 'fc2', 'predictions', 'global_average_pooling2d', 'batch_normalization']
+base_model_end_idx_2b = len(model.layers)
+for i, layer in enumerate(model.layers):
+    layer_name_lower = layer.name.lower()
+    if any(head_name in layer_name_lower for head_name in custom_head_layer_names):
+        if 'global_average' in layer_name_lower or 'gap' in layer_name_lower:
+            base_model_end_idx_2b = i
+            break
+if base_model_end_idx_2b == len(model.layers):
+    base_model_end_idx_2b = max(0, len(model.layers) - 5)
+
+base_model_layers_2b = model.layers[:base_model_end_idx_2b]
+base_model = BaseModelWrapper(base_model_layers_2b)
+print(f"[INFO] Base model re-extracted: {len(base_model_layers_2b)} layers")
+
+# ============================================================================
+# PHASE 2B: Unfreeze last 30 layers
+# ============================================================================
+
+print("\n" + "="*70)
+print("PHASE 2B: Fine-tuning with last 30 layers unfrozen")
+print("="*70)
+
+# Freeze all first, then unfreeze last 30 layers (excluding BatchNorm)
+base_model.trainable = False
+
+layers_to_unfreeze_2b = 30
+unfrozen_count = 0
+for layer in base_model.layers[-layers_to_unfreeze_2b:]:
+    if not isinstance(layer, layers.BatchNormalization):
+        layer.trainable = True
+        unfrozen_count += 1
+
+print(f"[PHASE 2B] Unfrozen {unfrozen_count} layers (last {layers_to_unfreeze_2b} layers, BatchNorm excluded)")
+
+# Recompile with same learning rate
+streaming_macro_f1_phase2b = StreamingMacroF1(num_classes=NUM_CLASSES, name='macro_f1_metric')
+metrics_list_phase2b = [
+    'accuracy',
+    streaming_macro_f1_phase2b,
+    keras.metrics.TopKCategoricalAccuracy(k=2, name='top_2_accuracy')
+]
+
+model.compile(
+    optimizer=keras.optimizers.Adam(learning_rate=FINE_TUNE_LR, beta_1=0.9, beta_2=0.999),
+    loss=loss_fn,
+    metrics=metrics_list_phase2b
 )
 
 checkpoint_finetune = ModelCheckpoint(
@@ -728,52 +972,64 @@ checkpoint_finetune = ModelCheckpoint(
 )
 
 early_stopping_finetune = EarlyStopping(
-    monitor='val_macro_f1_metric',
+    monitor='val_loss',
     patience=20,
     restore_best_weights=True,
     verbose=1,
-    mode='max',
+    mode='min',
     min_delta=0.002
 )
 
-# Separate ReduceLROnPlateau for Phase 2 (fine-tuning)
-# Phase 1 and Phase 2 have different LR scales, so separate callback is needed
-# Phase 2 uses lower LR (FINE_TUNE_LR), so reduction strategy should be different
-reduce_lr_phase2 = ReduceLROnPlateau(
-    monitor='val_macro_f1_metric',
-    factor=0.3,  # More conservative than Phase 1 (0.5) for fine-tuning
-    patience=6,  # Slightly longer patience than Phase 1 (5) for fine-tuning
-    min_lr=1e-7,
+reduce_lr_phase2b = ReduceLROnPlateau(
+    monitor='val_loss',
+    factor=0.5,
+    patience=10,
+    min_lr=1e-6,
     verbose=1,
-    mode='max'
+    mode='min'
 )
 
-sklearn_macro_f1_callback_phase2 = SklearnMacroF1Callback(
+sklearn_macro_f1_callback_phase2b = SklearnMacroF1Callback(
     val_generator=val_generator,
     num_classes=NUM_CLASSES,
     verbose=1
 )
 
-# Fine-tune
+# Phase 2b: Train with last 30 layers unfrozen
+epochs_phase2b = FINE_TUNE_EPOCHS - epochs_phase2a
 history_finetune = model.fit(
     train_generator,
     validation_data=val_generator,
-    epochs=FINE_TUNE_EPOCHS,
-    # Note: class_weight NOT used here - Class-Balanced Focal Loss already includes class weights in alpha
-    callbacks=[checkpoint_finetune, early_stopping_finetune, reduce_lr_phase2, sklearn_macro_f1_callback_phase2],
+    epochs=epochs_phase2b,
+    class_weight=phase2_class_weight,
+    callbacks=[checkpoint_finetune, early_stopping_finetune, reduce_lr_phase2b, sklearn_macro_f1_callback_phase2b],
     verbose=1
 )
 
 # Load best fine-tuned model
 print("\n[INFO] Loading best fine-tuned model...")
+# Load model without loss function (will recompile after loading)
 model = keras.models.load_model(
     'models/skin_5class_efficientnetb3_macro_f1_finetuned.keras',
     custom_objects={
         'StreamingMacroF1': StreamingMacroF1,
-        'class_balanced_focal_loss': class_balanced_focal_loss,
-        'get_class_balanced_focal_loss_fn': get_class_balanced_focal_loss_fn,
-        'focal_loss_fn': focal_loss_fn,
-    }
+    },
+    compile=False  # Load without compilation
+)
+
+# Recompile model (using same loss as Phase 2)
+print(f"[INFO] Recompiling model with Weighted Cross-Entropy + Label Smoothing (same as Phase 2)...")
+streaming_macro_f1_reload = StreamingMacroF1(num_classes=NUM_CLASSES, name='macro_f1_metric')
+metrics_list_reload = [
+    'accuracy',
+    streaming_macro_f1_reload,
+    keras.metrics.TopKCategoricalAccuracy(k=2, name='top_2_accuracy')
+]
+
+model.compile(
+    optimizer=keras.optimizers.Adam(learning_rate=FINE_TUNE_LR, beta_1=0.9, beta_2=0.999),
+    loss=loss_fn,  # Same Weighted Cross-Entropy with label smoothing
+    metrics=metrics_list_reload
 )
 
 # ============================================================================
@@ -787,13 +1043,46 @@ print("="*70)
 test_generator.reset()
 results = model.evaluate(test_generator, verbose=1)
 
-# Extract results
-loss = results[loss_idx]
-accuracy = results[accuracy_idx]
-macro_f1 = results[macro_f1_idx] if macro_f1_idx >= 0 else 0
+# Get metric names from model (evaluate() sonrası güvenilir)
+metric_names = model.metrics_names
+print(f"[DEBUG] Metric names: {metric_names}")
+print(f"[DEBUG] Results length: {len(results)}")
+
+# Extract results - güvenli index bulma
+loss_idx = 0  # Loss her zaman ilk sırada
+if 'loss' in metric_names:
+    loss_idx = metric_names.index('loss')
+
+# Accuracy için farklı olası isimleri dene
+accuracy_idx = -1
+for acc_name in ['accuracy', 'categorical_accuracy', 'acc']:
+    if acc_name in metric_names:
+        accuracy_idx = metric_names.index(acc_name)
+        break
+
+if accuracy_idx == -1:
+    # Fallback: loss'tan sonraki ilk metric genelde accuracy
+    if len(results) > 1:
+        accuracy_idx = 1
+        print(f"[WARNING] Accuracy metric not found in {metric_names}, using index 1 as fallback")
+    else:
+        accuracy_idx = 0
+        print(f"[WARNING] Could not determine accuracy index, using 0")
+
+# Macro F1 için farklı olası isimleri dene
+macro_f1_idx = -1
+for f1_name in ['macro_f1_metric', 'macro_f1', 'f1']:
+    if f1_name in metric_names:
+        macro_f1_idx = metric_names.index(f1_name)
+        break
+
+# Extract results with bounds checking
+loss = results[loss_idx] if loss_idx < len(results) else 0.0
+accuracy = results[accuracy_idx] if accuracy_idx >= 0 and accuracy_idx < len(results) else 0.0
+macro_f1 = results[macro_f1_idx] if macro_f1_idx >= 0 and macro_f1_idx < len(results) else 0.0
 
 print(f"\n[RESULTS] Final Test Metrics:")
-print(f"  Test Loss (Class-Balanced Focal Loss): {loss:.4f}")
+print(f"  Test Loss (Categorical Crossentropy): {loss:.4f}")
 print(f"  Test Accuracy: {accuracy*100:.2f}%")
 print(f"  Test Macro F1: {macro_f1*100:.2f}%")
 
@@ -846,7 +1135,18 @@ else:
 
 # Save final model
 final_model_path = 'models/skin_disease_model_5class_efficientnetb3_macro_f1.keras'
+# Save model in .keras format
 model.save(final_model_path)
+print(f"[INFO] Model saved as .keras: {final_model_path}")
+
+# Also save as SavedModel format (Keras 3.x compatible - like bone_disease_api.py)
+savedmodel_path = final_model_path.replace('.keras', '_savedmodel')
+if os.path.exists(savedmodel_path):
+    import shutil
+    shutil.rmtree(savedmodel_path)
+model.save(savedmodel_path, save_format='tf')
+print(f"[INFO] Model also saved as SavedModel: {savedmodel_path}")
+print(f"[INFO] SavedModel format is more compatible with Keras 3.x")
 print(f"\n[SUCCESS] Final model saved to: {final_model_path}")
 
 # ============================================================================
@@ -857,12 +1157,24 @@ print("\n[INFO] Generating training plots...")
 
 fig, axes = plt.subplots(2, 2, figsize=(15, 12))
 
+# Combine Phase 2 histories for plotting
+phase2_epochs_2a = len(history_phase2a.history['loss'])
+phase2_epochs_2b = len(history_finetune.history['loss'])
+phase2_total_epochs = phase2_epochs_2a + phase2_epochs_2b
+
+# Phase 2 x-axis: offset by Phase 1 epochs
+phase1_epochs = len(history_phase1.history['loss'])
+phase2_x_2a = list(range(phase1_epochs, phase1_epochs + phase2_epochs_2a))
+phase2_x_2b = list(range(phase1_epochs + phase2_epochs_2a, phase1_epochs + phase2_total_epochs))
+
 # Loss
 axes[0, 0].plot(history_phase1.history['loss'], label='Train (Phase 1)')
 axes[0, 0].plot(history_phase1.history['val_loss'], label='Val (Phase 1)')
-axes[0, 0].plot(history_finetune.history['loss'], label='Train (Phase 2)')
-axes[0, 0].plot(history_finetune.history['val_loss'], label='Val (Phase 2)')
-axes[0, 0].set_title('Model Loss (Class-Balanced Focal Loss)')
+axes[0, 0].plot(phase2_x_2a, history_phase2a.history['loss'], label='Train (Phase 2a)', linestyle='--')
+axes[0, 0].plot(phase2_x_2a, history_phase2a.history['val_loss'], label='Val (Phase 2a)', linestyle='--')
+axes[0, 0].plot(phase2_x_2b, history_finetune.history['loss'], label='Train (Phase 2b)')
+axes[0, 0].plot(phase2_x_2b, history_finetune.history['val_loss'], label='Val (Phase 2b)')
+axes[0, 0].set_title('Model Loss (Weighted Cross-Entropy)')
 axes[0, 0].set_xlabel('Epoch')
 axes[0, 0].set_ylabel('Loss')
 axes[0, 0].legend()
@@ -871,8 +1183,10 @@ axes[0, 0].grid(True)
 # Accuracy
 axes[0, 1].plot(history_phase1.history['accuracy'], label='Train (Phase 1)')
 axes[0, 1].plot(history_phase1.history['val_accuracy'], label='Val (Phase 1)')
-axes[0, 1].plot(history_finetune.history['accuracy'], label='Train (Phase 2)')
-axes[0, 1].plot(history_finetune.history['val_accuracy'], label='Val (Phase 2)')
+axes[0, 1].plot(phase2_x_2a, history_phase2a.history['accuracy'], label='Train (Phase 2a)', linestyle='--')
+axes[0, 1].plot(phase2_x_2a, history_phase2a.history['val_accuracy'], label='Val (Phase 2a)', linestyle='--')
+axes[0, 1].plot(phase2_x_2b, history_finetune.history['accuracy'], label='Train (Phase 2b)')
+axes[0, 1].plot(phase2_x_2b, history_finetune.history['val_accuracy'], label='Val (Phase 2b)')
 axes[0, 1].set_title('Model Accuracy')
 axes[0, 1].set_xlabel('Epoch')
 axes[0, 1].set_ylabel('Accuracy')
@@ -882,8 +1196,10 @@ axes[0, 1].grid(True)
 # Macro F1
 axes[1, 0].plot(history_phase1.history['macro_f1_metric'], label='Train (Phase 1)')
 axes[1, 0].plot(history_phase1.history['val_macro_f1_metric'], label='Val (Phase 1)')
-axes[1, 0].plot(history_finetune.history['macro_f1_metric'], label='Train (Phase 2)')
-axes[1, 0].plot(history_finetune.history['val_macro_f1_metric'], label='Val (Phase 2)')
+axes[1, 0].plot(phase2_x_2a, history_phase2a.history['macro_f1_metric'], label='Train (Phase 2a)', linestyle='--')
+axes[1, 0].plot(phase2_x_2a, history_phase2a.history['val_macro_f1_metric'], label='Val (Phase 2a)', linestyle='--')
+axes[1, 0].plot(phase2_x_2b, history_finetune.history['macro_f1_metric'], label='Train (Phase 2b)')
+axes[1, 0].plot(phase2_x_2b, history_finetune.history['val_macro_f1_metric'], label='Val (Phase 2b)')
 axes[1, 0].set_title('Macro F1 Score')
 axes[1, 0].set_xlabel('Epoch')
 axes[1, 0].set_ylabel('Macro F1')
